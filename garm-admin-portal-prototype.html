@@ -1,0 +1,1882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Garm Admin Portal — UI/UX Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+:root{
+  --primary:#4f46e5; --primary-600:#4338ca; --primary-700:#3730a3;
+  --primary-50:#eef2ff; --primary-100:#e0e7ff;
+  --ink:#0f172a; --ink-2:#1e293b; --muted:#64748b; --muted-2:#94a3b8;
+  --border:#e5e9f0; --bg:#f5f6fa; --surface:#ffffff;
+  --success:#059669; --success-bg:#e9f9f1;
+  --warning:#d97706; --warning-bg:#fff8e8;
+  --danger:#dc2626; --danger-bg:#fdedec;
+  --info:#2563eb; --info-bg:#eaf1fe;
+  --purple:#7c3aed; --purple-bg:#f3eefe;
+  --slate:#64748b; --slate-bg:#f1f5f9;
+  --radius:14px; --radius-sm:9px;
+  --shadow-sm:0 1px 2px rgba(15,23,42,.05), 0 1px 3px rgba(15,23,42,.06);
+  --shadow-md:0 6px 16px -4px rgba(15,23,42,.10), 0 3px 6px -3px rgba(15,23,42,.06);
+  --shadow-lg:0 20px 30px -10px rgba(15,23,42,.14), 0 8px 10px -6px rgba(15,23,42,.06);
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  font-size:14px; -webkit-font-smoothing:antialiased;
+}
+::-webkit-scrollbar{width:9px; height:9px;}
+::-webkit-scrollbar-thumb{background:#d6dbe4; border-radius:8px;}
+::-webkit-scrollbar-track{background:transparent;}
+a{color:inherit;text-decoration:none;}
+button{font-family:inherit;cursor:pointer;}
+input,select,textarea{font-family:inherit;}
+
+/* ---------- SHELL ---------- */
+.app-shell{display:flex; height:100vh; overflow:hidden;}
+.sidebar{
+  width:242px; flex:none; background:var(--ink); color:#cbd3e1;
+  display:flex; flex-direction:column; padding:18px 12px;
+}
+.brand{display:flex; align-items:center; gap:10px; padding:6px 10px 20px 10px;}
+.brand-mark{
+  width:34px;height:34px;border-radius:9px;
+  background:linear-gradient(135deg,var(--primary),#818cf8);
+  display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:15px;
+  box-shadow:var(--shadow-sm);
+}
+.brand-name{font-weight:700; font-size:15.5px; color:#fff; letter-spacing:.2px;}
+.brand-sub{font-size:11px; color:#94a3b8; margin-top:1px;}
+
+.nav-group-label{font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; color:#64748b; padding:14px 12px 6px;}
+.nav{list-style:none; margin:0; padding:0;}
+.nav li{margin:2px 0;}
+.nav a{
+  display:flex; align-items:center; gap:11px; padding:9px 12px; border-radius:10px;
+  color:#c7cedb; font-size:13.6px; font-weight:500; transition:background .15s,color .15s;
+}
+.nav a svg{width:18px;height:18px; flex:none; opacity:.85;}
+.nav a:hover{background:rgba(255,255,255,.06); color:#fff;}
+.nav li.active a{background:var(--primary); color:#fff; box-shadow:0 4px 10px rgba(79,70,229,.35);}
+.nav li.active a svg{opacity:1;}
+.nav li.hidden-role{display:none;}
+
+.sidebar-footer{margin-top:auto; padding:12px 10px 4px; border-top:1px solid rgba(255,255,255,.08);}
+.role-switch{width:100%; margin-top:10px;}
+.role-switch label{font-size:10.5px; color:#64748b; text-transform:uppercase; letter-spacing:.06em; display:block; margin-bottom:5px;}
+.role-switch select{
+  width:100%; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); color:#e5e9f0;
+  padding:7px 9px; border-radius:8px; font-size:12.5px;
+}
+.user-chip{display:flex; align-items:center; gap:9px; padding:9px 4px;}
+.avatar{width:32px;height:32px;border-radius:50%; background:var(--primary-100); color:var(--primary-700); display:flex;align-items:center;justify-content:center; font-weight:700; font-size:12.5px; flex:none;}
+.user-chip .name{font-size:13px; font-weight:600; color:#fff;}
+.user-chip .role{font-size:11px; color:#94a3b8;}
+
+.main{flex:1; display:flex; flex-direction:column; min-width:0;}
+.topbar{
+  height:60px; flex:none; background:var(--surface); border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between; padding:0 22px; gap:16px;
+}
+.crumb{font-size:15px; font-weight:700; color:var(--ink);}
+.crumb-sub{font-size:12px; color:var(--muted); font-weight:400;}
+.topbar-search{
+  flex:1; max-width:420px; display:flex; align-items:center; gap:8px; background:var(--bg);
+  border:1px solid var(--border); border-radius:10px; padding:8px 12px; color:var(--muted-2);
+}
+.topbar-search svg{width:16px;height:16px;}
+.topbar-search input{border:none; background:transparent; outline:none; width:100%; font-size:13px; color:var(--ink);}
+.topbar-right{display:flex; align-items:center; gap:14px;}
+.icon-btn{
+  width:36px;height:36px;border-radius:10px; border:1px solid var(--border); background:var(--surface);
+  display:flex;align-items:center;justify-content:center; color:var(--ink-2); position:relative;
+}
+.icon-btn svg{width:17px;height:17px;}
+.icon-btn:hover{background:var(--bg);}
+.dot-badge{position:absolute; top:-3px; right:-3px; width:9px;height:9px;border-radius:50%; background:var(--danger); border:2px solid var(--surface);}
+
+.content{flex:1; overflow-y:auto; padding:22px 26px 60px;}
+.view{display:none;}
+.view.active{display:block;}
+.subview{display:none;}
+.subview.active{display:block;}
+
+/* ---------- COMMON ---------- */
+.page-head{display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:20px; gap:16px; flex-wrap:wrap;}
+.page-title{font-size:22px; font-weight:800; letter-spacing:-.2px;}
+.page-desc{font-size:13px; color:var(--muted); margin-top:3px;}
+.page-actions{display:flex; gap:10px; flex-wrap:wrap;}
+
+.btn{
+  display:inline-flex; align-items:center; gap:7px; border-radius:10px; padding:9px 15px; font-size:13px; font-weight:600;
+  border:1px solid transparent; white-space:nowrap; transition:all .15s;
+}
+.btn svg{width:15px;height:15px;}
+.btn-primary{background:var(--primary); color:#fff; box-shadow:0 3px 8px rgba(79,70,229,.28);}
+.btn-primary:hover{background:var(--primary-600);}
+.btn-outline{background:var(--surface); color:var(--ink-2); border-color:var(--border);}
+.btn-outline:hover{background:var(--bg);}
+.btn-ghost{background:transparent; color:var(--muted); border-color:transparent;}
+.btn-ghost:hover{background:var(--bg); color:var(--ink);}
+.btn-danger{background:var(--danger-bg); color:var(--danger); border-color:#fbdcda;}
+.btn-sm{padding:6px 11px; font-size:12.3px; border-radius:8px;}
+
+.card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow-sm);}
+.card-pad{padding:18px 20px;}
+.card-head{display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--border);}
+.card-head h3{margin:0; font-size:14.5px; font-weight:700;}
+.card-head .sub{font-size:12px; color:var(--muted); font-weight:400; margin-top:2px;}
+
+.grid{display:grid; gap:16px;}
+.grid-6{grid-template-columns:repeat(6,1fr);}
+.grid-3{grid-template-columns:repeat(3,1fr);}
+.grid-4{grid-template-columns:repeat(4,1fr);}
+.grid-2{grid-template-columns:2fr 1fr;}
+.grid-12{grid-template-columns:repeat(12,1fr);}
+@media(max-width:1300px){.grid-6{grid-template-columns:repeat(3,1fr);} .grid-4{grid-template-columns:repeat(2,1fr);}}
+
+.kpi{padding:16px 18px; display:flex; flex-direction:column; gap:8px;}
+.kpi-top{display:flex; align-items:center; justify-content:space-between;}
+.kpi-icon{width:34px;height:34px;border-radius:9px; display:flex;align-items:center;justify-content:center;}
+.kpi-icon svg{width:17px;height:17px;}
+.kpi-label{font-size:12px; color:var(--muted); font-weight:600;}
+.kpi-value{font-size:21px; font-weight:800; letter-spacing:-.3px;}
+.kpi-delta{font-size:11.5px; font-weight:700; display:inline-flex; align-items:center; gap:3px; width:fit-content; padding:2px 7px; border-radius:20px;}
+.up{color:var(--success); background:var(--success-bg);}
+.down{color:var(--danger); background:var(--danger-bg);}
+
+.badge{display:inline-flex; align-items:center; gap:5px; font-size:11.3px; font-weight:700; padding:3.5px 9px; border-radius:20px; white-space:nowrap;}
+.badge .dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+.tone-info{color:var(--info); background:var(--info-bg);}
+.tone-success{color:var(--success); background:var(--success-bg);}
+.tone-warning{color:var(--warning); background:var(--warning-bg);}
+.tone-danger{color:var(--danger); background:var(--danger-bg);}
+.tone-purple{color:var(--purple); background:var(--purple-bg);}
+.tone-slate{color:var(--slate); background:var(--slate-bg);}
+
+.tag{font-size:11px; font-weight:600; color:var(--ink-2); background:var(--slate-bg); padding:3px 8px; border-radius:7px;}
+
+table{width:100%; border-collapse:collapse;}
+.table thead th{
+  text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted);
+  padding:10px 14px; border-bottom:1px solid var(--border); background:#fafbfd; white-space:nowrap;
+}
+.table tbody td{padding:12px 14px; border-bottom:1px solid #eef1f5; font-size:13.2px; vertical-align:middle;}
+.table tbody tr{transition:background .12s;}
+.table tbody tr:hover{background:#f8f9fd;}
+.table tbody tr.clickable{cursor:pointer;}
+.cust-name{font-weight:600; color:var(--ink);}
+.cust-sub{font-size:11.5px; color:var(--muted);}
+.tnum{font-weight:700;}
+.row-actions{display:flex; gap:4px; justify-content:flex-end;}
+
+.filter-bar{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px;}
+.field-sm{border:1px solid var(--border); background:var(--surface); border-radius:9px; padding:8px 11px; font-size:12.8px; color:var(--ink-2); min-width:110px;}
+.search-inline{display:flex; align-items:center; gap:7px; border:1px solid var(--border); background:var(--surface); border-radius:9px; padding:8px 12px; min-width:230px; color:var(--muted-2);}
+.search-inline svg{width:15px;height:15px;}
+.search-inline input{border:none; outline:none; font-size:12.8px; width:100%;}
+
+.bulkbar{display:none; align-items:center; gap:10px; background:var(--primary-50); border:1px solid var(--primary-100); padding:9px 14px; border-radius:10px; margin-bottom:12px; font-size:12.8px; color:var(--primary-700); font-weight:600;}
+.bulkbar.show{display:flex;}
+.bulkbar .spacer{flex:1;}
+
+.pager{display:flex; align-items:center; justify-content:space-between; padding:14px 4px 4px; font-size:12.5px; color:var(--muted);}
+.pager-btns{display:flex; gap:6px;}
+.pager-btns button{width:30px;height:30px;border-radius:8px;border:1px solid var(--border); background:var(--surface); display:flex;align-items:center;justify-content:center;}
+.pager-btns button.active{background:var(--primary); border-color:var(--primary); color:#fff;}
+
+/* Detail layouts */
+.detail-header{display:flex; align-items:center; gap:12px; margin-bottom:18px; flex-wrap:wrap;}
+.detail-title{font-size:19px; font-weight:800;}
+.back-btn{display:inline-flex; align-items:center; gap:6px; color:var(--muted); font-size:12.8px; font-weight:600; padding:7px 10px; border-radius:8px;}
+.back-btn:hover{background:var(--bg);}
+.back-btn svg{width:15px;height:15px;}
+.detail-grid{display:grid; grid-template-columns:1.1fr 1.6fr 1.1fr; gap:16px; align-items:start;}
+@media(max-width:1200px){.detail-grid{grid-template-columns:1fr;}}
+.info-row{display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px dashed #edf0f4; font-size:12.8px;}
+.info-row:last-child{border-bottom:none;}
+.info-row .k{color:var(--muted);}
+.info-row .v{font-weight:600; text-align:right;}
+
+.timeline{list-style:none; margin:0; padding:0;}
+.timeline li{display:flex; gap:10px; padding-bottom:18px; position:relative;}
+.timeline li:last-child{padding-bottom:0;}
+.timeline .tdot{width:26px;height:26px;border-radius:50%; background:var(--slate-bg); color:var(--muted-2); display:flex;align-items:center;justify-content:center; flex:none; z-index:1;}
+.timeline .tdot svg{width:13px;height:13px;}
+.timeline li.done .tdot{background:var(--success); color:#fff;}
+.timeline li.current .tdot{background:var(--primary); color:#fff; box-shadow:0 0 0 4px var(--primary-50);}
+.timeline li:not(:last-child)::before{content:''; position:absolute; left:12.5px; top:26px; bottom:0; width:2px; background:var(--border);}
+.timeline li.done:not(:last-child)::before{background:var(--success);}
+.timeline .tlabel{font-size:12.8px; font-weight:700;}
+.timeline .ttime{font-size:11px; color:var(--muted); margin-top:1px;}
+
+.doc-item{display:flex; align-items:center; gap:9px; padding:9px 0; border-bottom:1px solid #f1f3f7; font-size:12.6px;}
+.doc-item:last-child{border-bottom:none;}
+.doc-item svg{width:15px;height:15px; color:var(--muted-2);}
+.doc-item .fill{flex:1;}
+.doc-item .link{color:var(--primary); font-weight:700; font-size:11.5px;}
+
+/* checklist */
+.checklist-item{display:grid; grid-template-columns:1.4fr auto 1.4fr auto; gap:14px; align-items:center; padding:13px 0; border-bottom:1px solid #f1f3f7;}
+.checklist-item:last-child{border-bottom:none;}
+.checklist-name{font-weight:600; font-size:13.2px;}
+.pf-toggle{display:flex; gap:6px;}
+.pf-btn{padding:6px 13px; border-radius:8px; border:1px solid var(--border); font-size:12px; font-weight:700; background:var(--surface); color:var(--muted);}
+.pf-btn.pass.active{background:var(--success-bg); color:var(--success); border-color:#bdeed4;}
+.pf-btn.fail.active{background:var(--danger-bg); color:var(--danger); border-color:#f6c6c2;}
+.mini-input{border:1px solid var(--border); border-radius:8px; padding:6px 9px; font-size:12px; width:100%;}
+.photo-btn{width:32px;height:32px;border-radius:8px; border:1px dashed var(--border); display:flex;align-items:center;justify-content:center; color:var(--muted-2); flex:none;}
+
+.result-choice{display:flex; gap:12px; margin-top:6px;}
+.result-opt{flex:1; border:2px solid var(--border); border-radius:12px; padding:14px; text-align:center; font-weight:700; font-size:13px; color:var(--muted);}
+.result-opt svg{width:20px;height:20px; margin-bottom:6px;}
+.result-opt.sel-pass.active{border-color:var(--success); background:var(--success-bg); color:var(--success);}
+.result-opt.sel-fail.active{border-color:var(--danger); background:var(--danger-bg); color:var(--danger);}
+.result-opt.sel-rework.active{border-color:var(--warning); background:var(--warning-bg); color:var(--warning);}
+
+textarea.ta{width:100%; border:1px solid var(--border); border-radius:10px; padding:10px 12px; font-size:13px; resize:vertical; min-height:70px; font-family:inherit;}
+.dropzone{border:1.5px dashed var(--border); border-radius:12px; padding:22px; text-align:center; color:var(--muted); font-size:12.5px;}
+.dropzone svg{width:22px;height:22px; margin-bottom:6px; color:var(--muted-2);}
+
+/* tabs */
+.tabs{display:flex; gap:4px; border-bottom:1px solid var(--border); margin-bottom:18px;}
+.tab{padding:10px 16px; font-size:13px; font-weight:600; color:var(--muted); border-bottom:2px solid transparent; margin-bottom:-1px;}
+.tab.active{color:var(--primary); border-color:var(--primary);}
+.tab:hover{color:var(--ink);}
+.tabpanel{display:none;}
+.tabpanel.active{display:block;}
+
+/* invoice preview */
+.doc-preview{max-width:760px; margin:0 auto; background:#fff; border:1px solid var(--border); border-radius:var(--radius); padding:38px 42px; box-shadow:var(--shadow-md);}
+.doc-preview .dp-head{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:26px;}
+.doc-preview h2{margin:0 0 4px; font-size:20px;}
+.doc-preview .dp-meta{text-align:right; font-size:12.5px; color:var(--muted);}
+.doc-preview .dp-parties{display:flex; justify-content:space-between; margin-bottom:22px; gap:20px;}
+.doc-preview .dp-parties .blk{font-size:12.8px; line-height:1.6;}
+.doc-preview .dp-parties .blk .lbl{font-size:10.5px; text-transform:uppercase; color:var(--muted); letter-spacing:.06em; margin-bottom:4px; font-weight:700;}
+.doc-preview table{margin-bottom:18px;}
+.doc-preview th{font-size:11px; text-transform:uppercase; color:var(--muted); text-align:left; padding:8px 6px; border-bottom:2px solid var(--ink);}
+.doc-preview td{padding:9px 6px; font-size:12.8px; border-bottom:1px solid #eef0f4;}
+.dp-totals{margin-left:auto; width:260px;}
+.dp-totals .r{display:flex; justify-content:space-between; padding:5px 0; font-size:13px;}
+.dp-totals .r.total{border-top:2px solid var(--ink); margin-top:6px; padding-top:10px; font-weight:800; font-size:15px;}
+.dp-footer{margin-top:26px; padding-top:16px; border-top:1px dashed var(--border); font-size:11.5px; color:var(--muted); display:flex; justify-content:space-between;}
+
+/* switch */
+.switch{position:relative; width:42px; height:24px; flex:none;}
+.switch input{opacity:0; width:0; height:0;}
+.slider{position:absolute; inset:0; background:#dbe0e8; border-radius:20px; transition:.2s;}
+.slider::before{content:''; position:absolute; width:18px;height:18px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,.2);}
+input:checked + .slider{background:var(--primary);}
+input:checked + .slider::before{transform:translateX(18px);}
+.toggle-row{display:flex; align-items:center; justify-content:space-between; padding:14px 0; border-bottom:1px solid #f1f3f7;}
+.toggle-row:last-child{border-bottom:none;}
+.toggle-row .t-name{font-weight:700; font-size:13.3px;}
+.toggle-row .t-desc{font-size:12px; color:var(--muted); margin-top:2px;}
+
+/* form */
+.form-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+.form-field{display:flex; flex-direction:column; gap:6px;}
+.form-field.full{grid-column:1/-1;}
+.form-field label{font-size:12.3px; font-weight:700; color:var(--ink-2);}
+.form-field input, .form-field select, .form-field textarea{
+  border:1px solid var(--border); border-radius:9px; padding:9px 11px; font-size:13px; color:var(--ink);
+}
+.form-field input:focus, .form-field select:focus, .form-field textarea:focus{outline:2px solid var(--primary-100); border-color:var(--primary);}
+
+/* modal */
+.modal-overlay{position:fixed; inset:0; background:rgba(15,23,42,.45); display:none; align-items:center; justify-content:center; z-index:200; padding:20px;}
+.modal-overlay.show{display:flex;}
+.modal{background:#fff; border-radius:16px; width:100%; max-width:560px; max-height:88vh; overflow-y:auto; box-shadow:var(--shadow-lg); animation:pop .16s ease;}
+@keyframes pop{from{transform:scale(.96); opacity:0;} to{transform:scale(1); opacity:1;}}
+.modal-head{display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:1px solid var(--border);}
+.modal-head h3{margin:0; font-size:15.5px; font-weight:800;}
+.modal-body{padding:20px 22px;}
+.modal-foot{display:flex; justify-content:flex-end; gap:10px; padding:16px 22px; border-top:1px solid var(--border);}
+
+/* toast */
+.toast-wrap{position:fixed; bottom:22px; right:22px; z-index:300; display:flex; flex-direction:column; gap:10px;}
+.toast{background:var(--ink); color:#fff; padding:12px 16px; border-radius:11px; font-size:12.8px; font-weight:600; box-shadow:var(--shadow-lg); display:flex; align-items:center; gap:9px; min-width:230px; animation:slidein .2s ease;}
+.toast svg{width:16px;height:16px; color:#4ade80; flex:none;}
+@keyframes slidein{from{transform:translateY(10px); opacity:0;} to{transform:translateY(0); opacity:1;}}
+
+.two-col{display:grid; grid-template-columns:1.5fr 1fr; gap:16px;}
+@media(max-width:1200px){.two-col{grid-template-columns:1fr;}}
+.perf-tile{background:var(--bg); border-radius:11px; padding:13px 14px; text-align:center;}
+.perf-tile .pv{font-size:19px; font-weight:800;}
+.perf-tile .pl{font-size:11px; color:var(--muted); margin-top:2px; font-weight:600;}
+.chip-list{display:flex; flex-wrap:wrap; gap:6px;}
+.small-muted{font-size:11.5px; color:var(--muted);}
+.stars{color:#f59e0b; display:inline-flex; gap:1px;}
+.stars svg{width:13px;height:13px;}
+hr.sep{border:none; border-top:1px solid var(--border); margin:16px 0;}
+
+/* ---------- CATALOG ---------- */
+.sync-badge{display:inline-flex; align-items:center; gap:8px; font-size:12.3px; font-weight:700; color:var(--success); background:var(--success-bg); padding:7px 14px; border-radius:20px;}
+.sync-dot{width:7px;height:7px;border-radius:50%; background:var(--success); box-shadow:0 0 0 3px #b8f0d2; animation:pulse 1.6s infinite;}
+@keyframes pulse{0%{opacity:1;}50%{opacity:.35;}100%{opacity:1;}}
+.catalog-layout{display:grid; grid-template-columns:1.65fr 1fr; gap:18px; align-items:start;}
+@media(max-width:1200px){.catalog-layout{grid-template-columns:1fr;}}
+.ph-thumb{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#e0e7ff,#c7d2fe);color:#4338ca;font-weight:800;font-size:15px;border-radius:inherit;}
+.thumb-38{width:38px;height:38px;border-radius:9px;overflow:hidden;flex:none;}
+.upload-row{display:flex; align-items:center; gap:12px;}
+.upload-preview{width:64px;height:64px;border-radius:12px;overflow:hidden;border:1px solid var(--border);flex:none;background:var(--bg);}
+.upload-preview img{width:100%;height:100%;object-fit:cover;}
+.upload-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted-2);}
+.upload-placeholder svg{width:20px;height:20px;}
+
+.phone-mock{width:100%; max-width:270px; margin:0 auto; border:9px solid var(--ink); border-radius:30px; overflow:hidden; background:#fff; box-shadow:var(--shadow-lg);}
+.phone-notch{height:20px; background:var(--ink); display:flex; align-items:center; justify-content:center;}
+.phone-notch span{width:56px;height:5px;background:#334155;border-radius:4px;display:block;}
+.phone-screen{height:440px; overflow-y:auto; background:#f8f9fd;}
+.phone-topbar{padding:12px 13px 9px; background:#fff; border-bottom:1px solid var(--border); position:sticky; top:0; z-index:2;}
+.phone-topbar .pt-title{font-size:13px; font-weight:800;}
+.phone-topbar .pt-sub{font-size:10.5px; color:var(--muted);}
+.phone-toggle{display:flex; background:var(--slate-bg); border-radius:9px; padding:3px; margin-top:9px;}
+.phone-toggle button{flex:1; border:none; background:transparent; padding:6px 4px; border-radius:7px; font-size:10.8px; font-weight:700; color:var(--muted);}
+.phone-toggle button.active{background:#fff; color:var(--primary); box-shadow:0 1px 3px rgba(0,0,0,.1);}
+.phone-cats{display:flex; gap:6px; padding:10px 12px 4px; overflow-x:auto;}
+.phone-cat-pill{flex:none; padding:6px 12px; border-radius:20px; background:#fff; border:1px solid var(--border); font-size:10.8px; font-weight:700; white-space:nowrap; color:var(--ink-2);}
+.phone-grid{display:grid; grid-template-columns:1fr 1fr; gap:9px; padding:8px 12px 18px;}
+.phone-card{background:#fff; border:1px solid var(--border); border-radius:11px; overflow:hidden;}
+.phone-card .thumb{height:64px;}
+.phone-card .pc-body{padding:7px 8px;}
+.phone-card .pc-name{font-size:11px; font-weight:700; line-height:1.25;}
+.phone-card .pc-price{font-size:10.8px; color:var(--primary); font-weight:800; margin-top:2px;}
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">G</div>
+      <div>
+        <div class="brand-name">Garm Admin</div>
+        <div class="brand-sub">Operations Portal</div>
+      </div>
+    </div>
+
+    <div class="nav-group-label">Workspace</div>
+    <ul class="nav" id="mainNav">
+      <li data-view="dashboard" class="active"><a onclick="navTo('dashboard')"><i data-ic="grid"></i><span>Dashboard</span></a></li>
+      <li data-view="catalog"><a onclick="navTo('catalog')"><i data-ic="tag"></i><span>Catalog</span></a></li>
+      <li data-view="orders"><a onclick="navTo('orders')"><i data-ic="package"></i><span>Orders</span></a></li>
+      <li data-view="manufacturers"><a onclick="navTo('manufacturers')"><i data-ic="factory"></i><span>Manufacturers</span></a></li>
+      <li data-view="qc"><a onclick="navTo('qc')"><i data-ic="shield"></i><span>Quality Control</span></a></li>
+      <li data-view="documents"><a onclick="navTo('documents')"><i data-ic="file"></i><span>Documents</span></a></li>
+      <li data-view="payments"><a onclick="navTo('payments')"><i data-ic="card"></i><span>Payments</span></a></li>
+    </ul>
+
+    <div class="nav-group-label">Insights</div>
+    <ul class="nav">
+      <li data-view="reports"><a onclick="navTo('reports')"><i data-ic="bar"></i><span>Reports</span></a></li>
+      <li data-view="settings"><a onclick="navTo('settings')"><i data-ic="settings"></i><span>Settings</span></a></li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <div class="role-switch">
+        <label>Viewing as role</label>
+        <select id="roleSelect" onchange="applyRole()">
+          <option>Super Admin</option>
+          <option>Operations Manager</option>
+          <option>QC Supervisor</option>
+          <option>Finance Manager</option>
+          <option>Warehouse Manager</option>
+          <option>View-Only</option>
+        </select>
+      </div>
+      <div class="user-chip">
+        <div class="avatar">HM</div>
+        <div>
+          <div class="name">Haneef M.</div>
+          <div class="role" id="roleLabel">Super Admin</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <header class="topbar">
+      <div>
+        <div class="crumb" id="topTitle">Dashboard</div>
+      </div>
+      <div class="topbar-search">
+        <i data-ic="search"></i>
+        <input placeholder="Search orders, customers, manufacturers…" />
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn"><span class="dot-badge"></span><i data-ic="bell"></i></button>
+        <button class="icon-btn" onclick="showToast('Nothing new to sync — everything up to date.')"><i data-ic="refresh"></i></button>
+      </div>
+    </header>
+
+    <div class="content" id="content">
+
+      <!-- =========================== DASHBOARD =========================== -->
+      <section class="view active" id="view-dashboard">
+        <div class="page-head">
+          <div>
+            <div class="page-title">Good afternoon, Haneef 👋</div>
+            <div class="page-desc">Here's what's happening across Garm operations today, 9 Jul 2026.</div>
+          </div>
+          <div class="page-actions">
+            <select class="field-sm"><option>This month</option><option>Last 3 months</option><option>Custom range</option></select>
+            <button class="btn btn-outline" onclick="showToast('Dashboard exported as PDF')"><i data-ic="download"></i> Export</button>
+          </div>
+        </div>
+
+        <div class="grid grid-6" style="margin-bottom:16px;">
+          <div class="card kpi"><div class="kpi-top"><div class="kpi-icon" style="background:var(--info-bg);color:var(--info)"><i data-ic="rupee"></i></div><span class="kpi-delta up"><i data-ic="arrowUp"></i> 12%</span></div><div class="kpi-label">Total Revenue (Month)</div><div class="kpi-value">₹2,45,000</div></div>
+          <div class="card kpi"><div class="kpi-top"><div class="kpi-icon" style="background:var(--warning-bg);color:var(--warning)"><i data-ic="clock"></i></div><span class="kpi-delta down"><i data-ic="arrowDown"></i> 3%</span></div><div class="kpi-label">Orders Pending QC</div><div class="kpi-value">15</div></div>
+          <div class="card kpi"><div class="kpi-top"><div class="kpi-icon" style="background:var(--success-bg);color:var(--success)"><i data-ic="shieldSm"></i></div><span class="kpi-delta up"><i data-ic="arrowUp"></i> 2%</span></div><div class="kpi-label">QC Pass Rate</div><div class="kpi-value">92%</div></div>
+          <div class="card kpi"><div class="kpi-top"><div class="kpi-icon" style="background:var(--purple-bg);color:var(--purple)"><i data-ic="bar"></i></div><span class="kpi-delta up"><i data-ic="arrowUp"></i> 6%</span></div><div class="kpi-label">Average Order Value</div><div class="kpi-value">₹12,500</div></div>
+          <div class="card kpi"><div class="kpi-top"><div class="kpi-icon" style="background:var(--info-bg);color:var(--info)"><i data-ic="file"></i></div><span class="kpi-delta up"><i data-ic="arrowUp"></i> 9%</span></div><div class="kpi-label">Invoices Sent (Month)</div><div class="kpi-value">48</div></div>
+          <div class="card kpi"><div class="kpi-top"><div class="kpi-icon" style="background:var(--danger-bg);color:var(--danger)"><i data-ic="card"></i></div><span class="kpi-delta down"><i data-ic="arrowDown"></i> 4%</span></div><div class="kpi-label">Outstanding Payments</div><div class="kpi-value">₹89,000</div></div>
+        </div>
+
+        <div class="two-col" style="margin-bottom:16px;">
+          <div class="card">
+            <div class="card-head"><div><h3>Revenue Trend</h3><div class="sub">Last 12 months, gross revenue</div></div><span class="badge tone-success"><span class="dot"></span>+18% YoY</span></div>
+            <div class="card-pad"><canvas id="revenueTrendChart" height="90"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div><h3>Order Pipeline</h3><div class="sub">Orders currently at each stage</div></div></div>
+            <div class="card-pad"><canvas id="pipelineChart" height="130"></canvas></div>
+          </div>
+        </div>
+
+        <div class="two-col" style="margin-bottom:16px;">
+          <div class="card">
+            <div class="card-head"><div><h3>Top Manufacturers</h3><div class="sub">Ranked by on-time delivery this month</div></div><a class="small-muted" style="cursor:pointer;color:var(--primary);font-weight:700" onclick="navTo('manufacturers')">View all →</a></div>
+            <table class="table"><thead><tr><th>Manufacturer</th><th>Orders</th><th>On-time</th><th>QC Pass</th><th>Rating</th></tr></thead>
+              <tbody id="topMfrTable"></tbody>
+            </table>
+          </div>
+          <div class="card">
+            <div class="card-head"><div><h3>Alerts</h3><div class="sub">Needs your attention</div></div></div>
+            <div class="card-pad" id="alertsList" style="display:flex;flex-direction:column;gap:12px;"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><div><h3>Recent Activity</h3><div class="sub">Last actions across the portal</div></div></div>
+          <div class="card-pad" id="activityFeed" style="display:flex;flex-direction:column;gap:0;"></div>
+        </div>
+      </section>
+
+      <!-- =========================== CATALOG =========================== -->
+      <section class="view" id="view-catalog">
+        <div class="page-head">
+          <div><div class="page-title">Catalog</div><div class="page-desc">Categories &amp; products for Individuals (B2C) and Organizations (B2B) — changes publish live to the Garm App.</div></div>
+          <div class="page-actions"><span class="sync-badge"><span class="sync-dot"></span><span id="syncStatusText">Live sync connected</span></span></div>
+        </div>
+
+        <div class="tabs" id="catTypeTabs">
+          <div class="tab active" onclick="selectCatalogType('B2C', this)"><i data-ic="user"></i>&nbsp; Individuals</div>
+          <div class="tab" onclick="selectCatalogType('B2B', this)"><i data-ic="factory"></i>&nbsp; Organizations</div>
+        </div>
+        <div class="small-muted" style="margin:-10px 0 16px;" id="catalogTypeHint">Managing the catalog Individual customers see in the Garm App. Click the tab above to switch to Organizations.</div>
+
+        <div class="tabs" style="margin-bottom:14px;">
+          <div class="tab active" onclick="switchTab(this,'cat-tab-categories')">Categories</div>
+          <div class="tab" onclick="switchTab(this,'cat-tab-products')">Products</div>
+        </div>
+
+        <div class="catalog-layout">
+          <div>
+            <div class="tabpanel active" id="cat-tab-categories">
+              <div class="page-actions" style="justify-content:flex-end;display:flex;margin-bottom:12px;">
+                <button class="btn btn-primary btn-sm" onclick="openAddCategoryModal()"><i data-ic="plus"></i> Add Category</button>
+              </div>
+              <div class="card">
+                <table class="table"><thead><tr><th>Image</th><th>Category</th><th>Visible to</th><th>Products</th><th style="text-align:right">Actions</th></tr></thead>
+                  <tbody id="categoriesTable"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="tabpanel" id="cat-tab-products">
+              <div class="filter-bar">
+                <div class="search-inline"><i data-ic="search"></i><input placeholder="Search products…" oninput="renderProducts()" id="prodSearch"/></div>
+                <select class="field-sm" id="prodFilterStatus" onchange="renderProducts()"><option value="">All statuses</option><option>ACTIVE</option><option>INACTIVE</option></select>
+                <div style="flex:1"></div>
+                <button class="btn btn-primary btn-sm" onclick="openAddProductModal()"><i data-ic="plus"></i> Add Product</button>
+              </div>
+              <div class="card">
+                <table class="table"><thead><tr><th>Image</th><th>Product</th><th>Category</th><th>Visible to</th><th>Price</th><th>Sizes</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead>
+                  <tbody id="productsTable"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="card card-pad" style="position:sticky; top:0;">
+              <h3 style="margin:0 0 3px;font-size:13.5px;">Garm App — Live Preview</h3>
+              <div class="small-muted" style="margin-bottom:12px;">This mirrors the tab you have selected above. Every save updates it instantly.</div>
+              <div class="phone-mock">
+                <div class="phone-notch"><span></span></div>
+                <div class="phone-screen">
+                  <div class="phone-topbar">
+                    <div class="pt-title">Shop Garm</div>
+                    <div class="pt-sub" id="phoneViewingAs">Viewing as: Individuals</div>
+                  </div>
+                  <div class="phone-cats" id="phoneCats"></div>
+                  <div class="phone-grid" id="phoneGrid"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================== ORDERS =========================== -->
+      <section class="view" id="view-orders">
+        <div class="subview active" id="orders-list-view">
+          <div class="page-head">
+            <div><div class="page-title">Orders</div><div class="page-desc">Manage B2B &amp; B2C orders end-to-end.</div></div>
+            <div class="page-actions"><button class="btn btn-primary" onclick="openNewOrderModal()"><i data-ic="plus"></i> New Order</button></div>
+          </div>
+
+          <div class="filter-bar">
+            <div class="search-inline"><i data-ic="search"></i><input placeholder="Search order #, customer, email…" oninput="renderOrders()"/></div>
+            <select class="field-sm" id="f-status" onchange="renderOrders()"><option value="">All statuses</option><option>NEW</option><option>ASSIGNED</option><option>IN_PROGRESS</option><option>QC_READY</option><option>QC_APPROVED</option><option>INVOICED</option><option>PAID</option><option>SHIPPED</option><option>DELIVERED</option><option>CANCELLED</option></select>
+            <select class="field-sm" id="f-type" onchange="renderOrders()"><option value="">All types</option><option>B2B</option><option>B2C</option></select>
+            <select class="field-sm" id="f-mfr" onchange="renderOrders()"><option value="">All manufacturers</option></select>
+            <select class="field-sm" id="f-qc" onchange="renderOrders()"><option value="">Any QC status</option><option>PENDING</option><option>PASSED</option><option>FAILED</option><option>REWORK</option></select>
+            <select class="field-sm" id="f-pay" onchange="renderOrders()"><option value="">Any payment</option><option>PENDING</option><option>PARTIAL</option><option>COMPLETED</option></select>
+            <button class="btn btn-outline btn-sm" onclick="resetOrderFilters()"><i data-ic="filter"></i> Reset</button>
+          </div>
+
+          <div class="bulkbar" id="bulkbar">
+            <span id="bulkCount">0 selected</span>
+            <div class="spacer"></div>
+            <button class="btn btn-outline btn-sm" onclick="showToast('Selected orders sent to printer')"><i data-ic="printer"></i> Print</button>
+            <button class="btn btn-outline btn-sm" onclick="showToast('Assign-to-manufacturer dialog opened')"><i data-ic="factory"></i> Assign</button>
+            <button class="btn btn-outline btn-sm" onclick="showToast('Marked selected orders for QC')"><i data-ic="shieldSm"></i> Mark for QC</button>
+            <button class="btn btn-outline btn-sm" onclick="showToast('Invoices generated for selected orders')"><i data-ic="file"></i> Generate Invoices</button>
+            <button class="btn btn-outline btn-sm" onclick="showToast('Exporting to Excel…')"><i data-ic="download"></i> Export</button>
+          </div>
+
+          <div class="card">
+            <table class="table">
+              <thead><tr>
+                <th style="width:30px;"><input type="checkbox" onclick="toggleAllOrders(this)"/></th>
+                <th>Order #</th><th>Customer</th><th>Type</th><th>Items</th><th>Total</th><th>Status</th><th>QC</th><th>Payment</th><th style="text-align:right">Actions</th>
+              </tr></thead>
+              <tbody id="ordersTable"></tbody>
+            </table>
+            <div class="pager">
+              <span>Showing <b id="ordersCount">0</b> orders</span>
+              <div class="pager-btns"><button><i data-ic="chevLeft"></i></button><button class="active">1</button><button>2</button><button>3</button><button><i data-ic="chevRight"></i></button></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="subview" id="orders-detail-view">
+          <div class="back-btn" onclick="backTo('orders','orders-list-view')"><i data-ic="arrowLeft"></i> Back to Orders</div>
+          <div class="detail-header">
+            <div class="detail-title" id="od-title">ORD-20260701-004</div>
+            <span class="badge tone-info" id="od-status"><span class="dot"></span>ASSIGNED</span>
+            <div style="flex:1"></div>
+            <button class="btn btn-outline btn-sm" onclick="openAssignModal()"><i data-ic="factory"></i> Assign Manufacturer</button>
+            <button class="btn btn-outline btn-sm" onclick="showToast('Invoice generated: INV-20260701-004')"><i data-ic="file"></i> Generate Invoice</button>
+            <button class="btn btn-outline btn-sm" onclick="window.print()"><i data-ic="printer"></i> Print</button>
+          </div>
+
+          <div class="detail-grid">
+            <div class="card card-pad">
+              <h3 style="margin:0 0 12px;font-size:13.5px;">Customer &amp; Delivery</h3>
+              <div id="od-customer"></div>
+            </div>
+
+            <div class="card card-pad">
+              <h3 style="margin:0 0 12px;font-size:13.5px;">Order Items</h3>
+              <table class="table"><thead><tr><th>Product</th><th>Size</th><th>Color</th><th>Qty</th><th>Unit</th><th>Total</th></tr></thead>
+                <tbody id="od-items"></tbody>
+              </table>
+              <div class="dp-totals" style="margin-top:10px;">
+                <div class="r"><span>Subtotal</span><span id="od-subtotal"></span></div>
+                <div class="r"><span>Tax (18%)</span><span id="od-tax"></span></div>
+                <div class="r total"><span>Total</span><span id="od-total"></span></div>
+              </div>
+              <hr class="sep"/>
+              <h3 style="margin:0 0 8px;font-size:13.5px;">Admin Notes</h3>
+              <textarea class="ta" placeholder="Add a note about this order…">Customer requested custom embroidery on collar. Confirm placement with manufacturer before production.</textarea>
+              <div style="text-align:right;margin-top:8px;"><button class="btn btn-primary btn-sm" onclick="showToast('Note saved')">Save Note</button></div>
+            </div>
+
+            <div>
+              <div class="card card-pad" style="margin-bottom:14px;">
+                <h3 style="margin:0 0 14px;font-size:13.5px;">Status Timeline</h3>
+                <ul class="timeline" id="od-timeline"></ul>
+              </div>
+              <div class="card card-pad" style="margin-bottom:14px;">
+                <h3 style="margin:0 0 10px;font-size:13.5px;">Related Documents</h3>
+                <div class="doc-item"><i data-ic="file"></i><span class="fill">Quotation QTN-0421</span><a class="link" onclick="showToast('Opening quotation…')">View</a></div>
+                <div class="doc-item"><i data-ic="file"></i><span class="fill">Picking Ticket PT-0421</span><a class="link" onclick="showToast('Opening picking ticket…')">View</a></div>
+                <div class="doc-item"><i data-ic="file"></i><span class="fill">Packing Slip PS-0421</span><a class="link" onclick="showToast('Opening packing slip…')">View</a></div>
+              </div>
+              <div class="card card-pad">
+                <h3 style="margin:0 0 10px;font-size:13.5px;">Payment Info</h3>
+                <div class="info-row"><span class="k">Status</span><span class="v"><span class="badge tone-warning"><span class="dot"></span>PENDING</span></span></div>
+                <div class="info-row"><span class="k">Amount Due</span><span class="v">₹56,640</span></div>
+                <div class="info-row"><span class="k">Method</span><span class="v">Bank Transfer</span></div>
+                <div style="margin-top:10px;"><button class="btn btn-outline btn-sm" style="width:100%;justify-content:center" onclick="openRecordPaymentModal()"><i data-ic="card"></i> Record Payment</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================== MANUFACTURERS =========================== -->
+      <section class="view" id="view-manufacturers">
+        <div class="subview active" id="mfr-list-view">
+          <div class="page-head">
+            <div><div class="page-title">Manufacturers</div><div class="page-desc">Registry and performance of manufacturing partners.</div></div>
+            <div class="page-actions"><button class="btn btn-primary" onclick="openModal('Add Manufacturer', manufacturerFormHtml())"><i data-ic="plus"></i> Add Manufacturer</button></div>
+          </div>
+          <div class="filter-bar">
+            <div class="search-inline"><i data-ic="search"></i><input placeholder="Search name, city, email…"/></div>
+            <select class="field-sm"><option>All statuses</option><option>Active</option><option>On Hold</option><option>Inactive</option></select>
+            <select class="field-sm"><option>All categories</option><option>Shirts</option><option>Pants</option><option>Accessories</option></select>
+            <select class="field-sm"><option>All cities</option><option>Tiruppur</option><option>Ludhiana</option><option>Surat</option></select>
+          </div>
+          <div class="card">
+            <table class="table"><thead><tr><th>Name</th><th>City</th><th>Categories</th><th>Capacity/mo</th><th>Lead time</th><th>On-time</th><th>QC pass</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead>
+              <tbody id="mfrTable"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="subview" id="mfr-detail-view">
+          <div class="back-btn" onclick="backTo('manufacturers','mfr-list-view')"><i data-ic="arrowLeft"></i> Back to Manufacturers</div>
+          <div class="detail-header">
+            <div class="detail-title" id="md-name">ABC Garments</div>
+            <span class="badge tone-success"><span class="dot"></span>Verified</span>
+            <span class="badge tone-slate" id="md-status">ACTIVE</span>
+            <div style="flex:1"></div>
+            <button class="btn btn-outline btn-sm"><i data-ic="edit"></i> Edit</button>
+            <button class="btn btn-outline btn-sm"><i data-ic="package"></i> View Orders</button>
+          </div>
+          <div class="two-col">
+            <div>
+              <div class="card card-pad" style="margin-bottom:14px;">
+                <h3 style="margin:0 0 12px;font-size:13.5px;">Performance Dashboard</h3>
+                <div class="grid grid-4" style="margin-bottom:14px;">
+                  <div class="perf-tile"><div class="pv">312</div><div class="pl">Total Orders</div></div>
+                  <div class="perf-tile"><div class="pv">288</div><div class="pl">Completed</div></div>
+                  <div class="perf-tile"><div class="pv">95%</div><div class="pl">On-time Rate</div></div>
+                  <div class="perf-tile"><div class="pv">92%</div><div class="pl">QC Pass Rate</div></div>
+                </div>
+                <canvas id="mfrTrendChart" height="90"></canvas>
+              </div>
+              <div class="card card-pad">
+                <h3 style="margin:0 0 10px;font-size:13.5px;">Recent Orders</h3>
+                <table class="table"><thead><tr><th>Order #</th><th>Customer</th><th>Qty</th><th>Status</th><th>Date</th></tr></thead>
+                  <tbody id="md-orders"></tbody>
+                </table>
+              </div>
+            </div>
+            <div>
+              <div class="card card-pad" style="margin-bottom:14px;">
+                <h3 style="margin:0 0 10px;font-size:13.5px;">Basic Info</h3>
+                <div class="info-row"><span class="k">Contact person</span><span class="v">Ravi Kumar</span></div>
+                <div class="info-row"><span class="k">Email</span><span class="v">contact@abcgarments.in</span></div>
+                <div class="info-row"><span class="k">Phone</span><span class="v">+91 98765 43210</span></div>
+                <div class="info-row"><span class="k">City</span><span class="v">Tiruppur, TN</span></div>
+                <div class="info-row"><span class="k">Certifications</span><span class="v"><span class="chip-list"><span class="tag">ISO 9001</span><span class="tag">OEKO-TEX</span></span></span></div>
+              </div>
+              <div class="card card-pad" style="margin-bottom:14px;">
+                <h3 style="margin:0 0 10px;font-size:13.5px;">Rates &amp; Capacity</h3>
+                <div class="info-row"><span class="k">Per-unit cost</span><span class="v">₹180</span></div>
+                <div class="info-row"><span class="k">Min. order qty</span><span class="v">50 units</span></div>
+                <div class="info-row"><span class="k">Capacity / month</span><span class="v">5,000 units</span></div>
+                <div class="info-row"><span class="k">Lead time</span><span class="v">7 days</span></div>
+                <div class="info-row"><span class="k">Payment terms</span><span class="v">50% advance</span></div>
+              </div>
+              <div class="card card-pad">
+                <h3 style="margin:0 0 10px;font-size:13.5px;">Payment History</h3>
+                <div class="info-row"><span class="k">INV-0392 · Jun 28</span><span class="v"><span class="badge tone-success">PAID</span></span></div>
+                <div class="info-row"><span class="k">INV-0381 · Jun 14</span><span class="v"><span class="badge tone-success">PAID</span></span></div>
+                <div class="info-row"><span class="k">INV-0370 · May 30</span><span class="v"><span class="badge tone-warning">PARTIAL</span></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================== QC =========================== -->
+      <section class="view" id="view-qc">
+        <div class="subview active" id="qc-list-view">
+          <div class="page-head">
+            <div><div class="page-title">Quality Control</div><div class="page-desc">Inspection queue and QC performance.</div></div>
+          </div>
+
+          <div class="grid grid-4" style="margin-bottom:16px;">
+            <div class="card kpi"><div class="kpi-label">Total Inspected (mo)</div><div class="kpi-value">186</div></div>
+            <div class="card kpi"><div class="kpi-label">Pass Rate</div><div class="kpi-value" style="color:var(--success)">92%</div></div>
+            <div class="card kpi"><div class="kpi-label">Fail Rate</div><div class="kpi-value" style="color:var(--danger)">5%</div></div>
+            <div class="card kpi"><div class="kpi-label">Rework Rate</div><div class="kpi-value" style="color:var(--warning)">3%</div></div>
+          </div>
+
+          <div class="two-col" style="margin-bottom:16px;">
+            <div class="card"><div class="card-head"><h3>Pass Rate Trend</h3></div><div class="card-pad"><canvas id="qcTrendChart" height="90"></canvas></div></div>
+            <div class="card"><div class="card-head"><h3>Inspector Performance</h3></div>
+              <table class="table"><thead><tr><th>Inspector</th><th>Inspections</th><th>Pass %</th></tr></thead>
+                <tbody>
+                  <tr><td>Meena R.</td><td>62</td><td><span class="badge tone-success">94%</span></td></tr>
+                  <tr><td>Arjun S.</td><td>58</td><td><span class="badge tone-success">91%</span></td></tr>
+                  <tr><td>Priya D.</td><td>66</td><td><span class="badge tone-warning">88%</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h3>QC Pending Queue</h3><span class="badge tone-warning"><span class="dot"></span>15 awaiting inspection</span></div>
+            <table class="table"><thead><tr><th>Order #</th><th>Manufacturer</th><th>Item type</th><th>Qty</th><th>Ready since</th><th>Inspector</th><th style="text-align:right">Actions</th></tr></thead>
+              <tbody id="qcTable"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="subview" id="qc-form-view">
+          <div class="back-btn" onclick="backTo('qc','qc-list-view')"><i data-ic="arrowLeft"></i> Back to QC Queue</div>
+          <div class="detail-header"><div class="detail-title">Inspection — <span id="qcf-order">ORD-20260701-004</span></div><span class="badge tone-slate">Shirts · Qty 100</span></div>
+
+          <div class="two-col">
+            <div class="card card-pad">
+              <h3 style="margin:0 0 4px;font-size:13.5px;">Checklist — Shirts</h3>
+              <div class="small-muted" style="margin-bottom:8px;">Mark each item Pass or Fail. Add notes for any failures.</div>
+              <div id="qcChecklist"></div>
+            </div>
+            <div>
+              <div class="card card-pad" style="margin-bottom:14px;">
+                <h3 style="margin:0 0 10px;font-size:13.5px;">Overall Result</h3>
+                <div class="result-choice">
+                  <div class="result-opt sel-pass" onclick="setQcResult('pass')"><i data-ic="checkCircle"></i><div>Pass</div></div>
+                  <div class="result-opt sel-fail" onclick="setQcResult('fail')"><i data-ic="xCircle"></i><div>Fail</div></div>
+                  <div class="result-opt sel-rework" onclick="setQcResult('rework')"><i data-ic="repeat"></i><div>Rework</div></div>
+                </div>
+              </div>
+              <div class="card card-pad" style="margin-bottom:14px;">
+                <h3 style="margin:0 0 8px;font-size:13.5px;">Overall Notes</h3>
+                <textarea class="ta" placeholder="General inspection comments…"></textarea>
+              </div>
+              <div class="card card-pad" style="margin-bottom:14px;">
+                <h3 style="margin:0 0 8px;font-size:13.5px;">Photos</h3>
+                <div class="dropzone"><i data-ic="upload"></i><div>Drag photos here or click to upload</div></div>
+              </div>
+              <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="submitQc()"><i data-ic="check"></i> Submit Inspection</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================== DOCUMENTS =========================== -->
+      <section class="view" id="view-documents">
+        <div class="subview active" id="doc-list-view">
+          <div class="page-head">
+            <div><div class="page-title">Documents</div><div class="page-desc">Invoices, quotations, picking tickets &amp; packing slips.</div></div>
+            <div class="page-actions"><button class="btn btn-primary" onclick="showToast('New document draft created')"><i data-ic="plus"></i> New Document</button></div>
+          </div>
+
+          <div class="tabs">
+            <div class="tab active" onclick="switchTab(this,'doc-tab-invoices')">Invoices</div>
+            <div class="tab" onclick="switchTab(this,'doc-tab-quotes')">Quotations</div>
+            <div class="tab" onclick="switchTab(this,'doc-tab-picking')">Picking Tickets</div>
+            <div class="tab" onclick="switchTab(this,'doc-tab-packing')">Packing Slips</div>
+          </div>
+
+          <div class="tabpanel active" id="doc-tab-invoices">
+            <div class="filter-bar">
+              <div class="search-inline"><i data-ic="search"></i><input placeholder="Search invoice #, order #, customer…"/></div>
+              <select class="field-sm"><option>All statuses</option><option>DRAFT</option><option>SENT</option><option>PARTIALLY_PAID</option><option>PAID</option><option>OVERDUE</option></select>
+            </div>
+            <div class="card">
+              <table class="table"><thead><tr><th>Invoice #</th><th>Order #</th><th>Customer</th><th>Total</th><th>Status</th><th>Sent</th><th>Due</th><th style="text-align:right">Actions</th></tr></thead>
+                <tbody id="invoiceTable"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="tabpanel" id="doc-tab-quotes">
+            <div class="card"><table class="table"><thead><tr><th>Quotation #</th><th>Customer</th><th>Total</th><th>Valid Till</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead>
+              <tbody>
+                <tr><td class="tnum">QTN-0421</td><td>Acme Corp</td><td>₹31,200</td><td>28 Jul 2026</td><td><span class="badge tone-info">SENT</span></td><td class="row-actions"><button class="icon-btn btn-sm" style="width:30px;height:30px;"><i data-ic="eye"></i></button></td></tr>
+                <tr><td class="tnum">QTN-0418</td><td>Priya Sharma</td><td>₹8,400</td><td>20 Jul 2026</td><td><span class="badge tone-success">ACCEPTED</span></td><td class="row-actions"><button class="icon-btn btn-sm" style="width:30px;height:30px;"><i data-ic="eye"></i></button></td></tr>
+              </tbody>
+            </table></div>
+          </div>
+          <div class="tabpanel" id="doc-tab-picking">
+            <div class="card"><table class="table"><thead><tr><th>Ticket #</th><th>Order #</th><th>Items</th><th>Picked</th><th style="text-align:right">Actions</th></tr></thead>
+              <tbody>
+                <tr><td class="tnum">PT-0421</td><td>ORD-20260701-004</td><td>3 lines</td><td><span class="badge tone-warning">In progress</span></td><td class="row-actions"><button class="icon-btn btn-sm" style="width:30px;height:30px;"><i data-ic="printer"></i></button></td></tr>
+              </tbody>
+            </table></div>
+          </div>
+          <div class="tabpanel" id="doc-tab-packing">
+            <div class="card"><table class="table"><thead><tr><th>Slip #</th><th>Order #</th><th>Customer</th><th style="text-align:right">Actions</th></tr></thead>
+              <tbody>
+                <tr><td class="tnum">PS-0421</td><td>ORD-20260701-004</td><td>Acme Corp</td><td class="row-actions"><button class="icon-btn btn-sm" style="width:30px;height:30px;"><i data-ic="printer"></i></button></td></tr>
+              </tbody>
+            </table></div>
+          </div>
+        </div>
+
+        <div class="subview" id="doc-detail-view">
+          <div class="back-btn" onclick="backTo('documents','doc-list-view')"><i data-ic="arrowLeft"></i> Back to Documents</div>
+          <div class="page-actions" style="justify-content:flex-end;display:flex;gap:10px;margin-bottom:16px;">
+            <button class="btn btn-outline btn-sm" onclick="window.print()"><i data-ic="printer"></i> Print</button>
+            <button class="btn btn-outline btn-sm" onclick="showToast('Invoice downloaded as PDF')"><i data-ic="download"></i> Download PDF</button>
+            <button class="btn btn-outline btn-sm" onclick="openModal('Send Invoice', sendInvoiceFormHtml())"><i data-ic="mail"></i> Send</button>
+            <button class="btn btn-primary btn-sm" onclick="showToast('Invoice marked as PAID')"><i data-ic="check"></i> Mark as Paid</button>
+          </div>
+
+          <div class="doc-preview">
+            <div class="dp-head">
+              <div>
+                <h2>INVOICE</h2>
+                <div class="small-muted">Garm Manufacturing Pvt. Ltd.<br/>4th Floor, Textile Hub, Chennai, TN 600001<br/>GSTIN: 33AAAAA0000A1Z5</div>
+              </div>
+              <div class="dp-meta">
+                <div><b>Invoice #</b> <span id="dp-invno">INV-20260701-004</span></div>
+                <div><b>Order #</b> <span id="dp-ordno">ORD-20260701-004</span></div>
+                <div><b>Issue date</b> 01 Jul 2026</div>
+                <div><b>Due date</b> 31 Jul 2026</div>
+              </div>
+            </div>
+            <div class="dp-parties">
+              <div class="blk"><div class="lbl">Billed To</div><span id="dp-custname">Acme Corporation</span><br/>GSTIN: 29BBBBB1111B2Z6<br/><span id="dp-custemail">hr@acmecorp.com</span></div>
+              <div class="blk"><div class="lbl">Ship To</div>Acme Corporation<br/>Plot 12, Industrial Area<br/>Bengaluru, KA 560068</div>
+            </div>
+            <table>
+              <thead><tr><th>Description</th><th>Qty</th><th>Unit Price</th><th>Tax</th><th style="text-align:right">Amount</th></tr></thead>
+              <tbody>
+                <tr><td>Garm Shirt — Black, L (Custom embroidery)</td><td>100</td><td>₹250</td><td>18%</td><td style="text-align:right">₹29,500</td></tr>
+                <tr><td>Garm Shirt — White, M</td><td>80</td><td>₹250</td><td>18%</td><td style="text-align:right">₹23,600</td></tr>
+              </tbody>
+            </table>
+            <div class="dp-totals">
+              <div class="r"><span>Subtotal</span><span>₹45,000</span></div>
+              <div class="r"><span>Tax (18%)</span><span>₹8,100</span></div>
+              <div class="r"><span>Discount</span><span>−₹0</span></div>
+              <div class="r total"><span>Total Due</span><span id="dp-total">₹53,100</span></div>
+            </div>
+            <div class="dp-footer">
+              <div>Bank: HDFC Bank · A/C 5021 0043 8812 · IFSC HDFC0000452</div>
+              <div>Payment terms: Due within 30 days</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================== PAYMENTS =========================== -->
+      <section class="view" id="view-payments">
+        <div class="page-head">
+          <div><div class="page-title">Payments</div><div class="page-desc">Track receivables and reconcile transactions.</div></div>
+          <div class="page-actions"><button class="btn btn-primary" onclick="openRecordPaymentModal()"><i data-ic="plus"></i> Record Payment</button></div>
+        </div>
+        <div class="grid grid-4" style="margin-bottom:16px;">
+          <div class="card kpi"><div class="kpi-label">Total Collected (mo)</div><div class="kpi-value" style="color:var(--success)">₹1,86,400</div></div>
+          <div class="card kpi"><div class="kpi-label">Pending</div><div class="kpi-value" style="color:var(--warning)">₹42,300</div></div>
+          <div class="card kpi"><div class="kpi-label">Overdue</div><div class="kpi-value" style="color:var(--danger)">₹11,000</div></div>
+          <div class="card kpi"><div class="kpi-label">Refunded</div><div class="kpi-value" style="color:var(--muted)">₹3,500</div></div>
+        </div>
+        <div class="filter-bar">
+          <div class="search-inline"><i data-ic="search"></i><input placeholder="Search order #, invoice #, customer…"/></div>
+          <select class="field-sm"><option>All statuses</option><option>PENDING</option><option>COMPLETED</option><option>FAILED</option><option>REFUNDED</option></select>
+          <select class="field-sm"><option>All methods</option><option>Bank Transfer</option><option>Card</option><option>UPI</option><option>Cheque</option></select>
+        </div>
+        <div class="card">
+          <table class="table"><thead><tr><th>Order #</th><th>Invoice #</th><th>Customer</th><th>Amount</th><th>Method</th><th>Status</th><th>Paid on</th><th style="text-align:right">Actions</th></tr></thead>
+            <tbody id="paymentsTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- =========================== REPORTS =========================== -->
+      <section class="view" id="view-reports">
+        <div class="page-head">
+          <div><div class="page-title">Reports &amp; Analytics</div><div class="page-desc">Business insights across revenue, orders, QC and manufacturers.</div></div>
+          <div class="page-actions"><button class="btn btn-outline" onclick="showToast('Report exported as Excel')"><i data-ic="download"></i> Export Excel</button><button class="btn btn-outline" onclick="showToast('Report exported as PDF')"><i data-ic="printer"></i> Export PDF</button></div>
+        </div>
+        <div class="tabs">
+          <div class="tab active" onclick="switchTab(this,'rep-revenue')">Revenue</div>
+          <div class="tab" onclick="switchTab(this,'rep-orders')">Orders</div>
+          <div class="tab" onclick="switchTab(this,'rep-qc')">QC</div>
+          <div class="tab" onclick="switchTab(this,'rep-mfr')">Manufacturer</div>
+          <div class="tab" onclick="switchTab(this,'rep-custom')">Custom Builder</div>
+        </div>
+
+        <div class="tabpanel active" id="rep-revenue">
+          <div class="two-col" style="margin-bottom:16px;">
+            <div class="card"><div class="card-head"><h3>Revenue Trend (12 mo)</h3></div><div class="card-pad"><canvas id="repRevenueChart" height="90"></canvas></div></div>
+            <div class="card"><div class="card-head"><h3>B2B vs B2C</h3></div><div class="card-pad"><canvas id="repB2bChart" height="90"></canvas></div></div>
+          </div>
+          <div class="card"><div class="card-head"><h3>Top Customers by Revenue</h3></div>
+            <table class="table"><thead><tr><th>Customer</th><th>Type</th><th>Orders</th><th>Revenue</th></tr></thead>
+              <tbody>
+                <tr><td>Acme Corporation</td><td><span class="tag">B2B</span></td><td>18</td><td>₹5,42,000</td></tr>
+                <tr><td>Nova Retail Pvt Ltd</td><td><span class="tag">B2B</span></td><td>12</td><td>₹3,10,000</td></tr>
+                <tr><td>Priya Sharma</td><td><span class="tag">B2C</span></td><td>4</td><td>₹32,000</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="tabpanel" id="rep-orders">
+          <div class="grid grid-4" style="margin-bottom:16px;">
+            <div class="card kpi"><div class="kpi-label">Total Orders (YTD)</div><div class="kpi-value">1,284</div></div>
+            <div class="card kpi"><div class="kpi-label">Avg Order Value</div><div class="kpi-value">₹12,500</div></div>
+            <div class="card kpi"><div class="kpi-label">Avg Fulfillment Time</div><div class="kpi-value">11.4 days</div></div>
+            <div class="card kpi"><div class="kpi-label">Cancellation Rate</div><div class="kpi-value">2.1%</div></div>
+          </div>
+          <div class="card"><div class="card-head"><h3>Orders by Status</h3></div><div class="card-pad"><canvas id="repOrdersChart" height="90"></canvas></div></div>
+        </div>
+
+        <div class="tabpanel" id="rep-qc">
+          <div class="two-col">
+            <div class="card"><div class="card-head"><h3>Pass / Fail / Rework</h3></div><div class="card-pad"><canvas id="repQcChart" height="90"></canvas></div></div>
+            <div class="card"><div class="card-head"><h3>Most Common Failure Reasons</h3></div>
+              <table class="table"><thead><tr><th>Reason</th><th>Count</th></tr></thead>
+                <tbody>
+                  <tr><td>Seam quality</td><td>14</td></tr>
+                  <tr><td>Color mismatch</td><td>9</td></tr>
+                  <tr><td>Tag placement</td><td>6</td></tr>
+                  <tr><td>Fabric defects</td><td>4</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="tabpanel" id="rep-mfr">
+          <div class="card"><div class="card-head"><h3>Manufacturer Rankings</h3></div><div class="card-pad"><canvas id="repMfrChart" height="110"></canvas></div></div>
+        </div>
+
+        <div class="tabpanel" id="rep-custom">
+          <div class="card card-pad">
+            <h3 style="margin:0 0 14px;font-size:14px;">Custom Report Builder</h3>
+            <div class="form-grid">
+              <div class="form-field"><label>Date range</label><select><option>This month</option><option>Last 3 months</option><option>Custom</option></select></div>
+              <div class="form-field"><label>Manufacturer</label><select><option>All manufacturers</option><option>ABC Garments</option><option>Vogue Textiles</option></select></div>
+              <div class="form-field"><label>Customer type</label><select><option>All</option><option>B2B</option><option>B2C</option></select></div>
+              <div class="form-field"><label>Status</label><select><option>All statuses</option></select></div>
+              <div class="form-field full"><label>Metrics to include</label>
+                <div class="chip-list">
+                  <label class="tag"><input type="checkbox" checked/> Revenue</label>
+                  <label class="tag"><input type="checkbox" checked/> Orders</label>
+                  <label class="tag"><input type="checkbox"/> QC Pass Rate</label>
+                  <label class="tag"><input type="checkbox"/> Avg Lead Time</label>
+                </div>
+              </div>
+            </div>
+            <div class="toggle-row" style="margin-top:10px;">
+              <div><div class="t-name">Schedule recurring report</div><div class="t-desc">Email this report automatically</div></div>
+              <label class="switch"><input type="checkbox"/><span class="slider"></span></label>
+            </div>
+            <div style="text-align:right;margin-top:14px;"><button class="btn btn-primary" onclick="showToast('Custom report generated')"><i data-ic="bar"></i> Generate Report</button></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================== SETTINGS =========================== -->
+      <section class="view" id="view-settings">
+        <div class="page-head"><div><div class="page-title">Settings</div><div class="page-desc">Users, permissions, features and company configuration.</div></div></div>
+        <div class="tabs">
+          <div class="tab active" onclick="switchTab(this,'set-users')">Users</div>
+          <div class="tab" onclick="switchTab(this,'set-roles')">Roles &amp; Permissions</div>
+          <div class="tab" onclick="switchTab(this,'set-features')">Feature Toggles</div>
+          <div class="tab" onclick="switchTab(this,'set-company')">Company Details</div>
+        </div>
+
+        <div class="tabpanel active" id="set-users">
+          <div class="page-actions" style="justify-content:flex-end;display:flex;margin-bottom:12px;"><button class="btn btn-primary btn-sm" onclick="openModal('Add User', addUserFormHtml())"><i data-ic="plus"></i> Add User</button></div>
+          <div class="card"><table class="table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Last login</th><th style="text-align:right">Actions</th></tr></thead>
+            <tbody>
+              <tr><td class="cust-name">Haneef M.</td><td>hscreators@gmail.com</td><td><span class="tag">Super Admin</span></td><td><span class="badge tone-success">Active</span></td><td>Today, 10:12 AM</td><td class="row-actions"><button class="icon-btn btn-sm" style="width:30px;height:30px;"><i data-ic="edit"></i></button></td></tr>
+              <tr><td class="cust-name">Divya Raghavan</td><td>divya@garm.com</td><td><span class="tag">Operations Manager</span></td><td><span class="badge tone-success">Active</span></td><td>Yesterday, 6:40 PM</td><td class="row-actions"><button class="icon-btn btn-sm" style="width:30px;height:30px;"><i data-ic="edit"></i></button></td></tr>
+              <tr><td class="cust-name">Meena Rajan</td><td>meena@garm.com</td><td><span class="tag">QC Supervisor</span></td><td><span class="badge tone-success">Active</span></td><td>2 days ago</td><td class="row-actions"><button class="icon-btn btn-sm" style="width:30px;height:30px;"><i data-ic="edit"></i></button></td></tr>
+              <tr><td class="cust-name">Arjun Nair</td><td>arjun@garm.com</td><td><span class="tag">Finance Manager</span></td><td><span class="badge tone-slate">Invited</span></td><td>—</td><td class="row-actions"><button class="icon-btn btn-sm" style="width:30px;height:30px;"><i data-ic="edit"></i></button></td></tr>
+            </tbody>
+          </table></div>
+        </div>
+
+        <div class="tabpanel" id="set-roles">
+          <div class="card"><table class="table"><thead><tr><th>Role</th><th>View</th><th>Create</th><th>Edit</th><th>Delete</th><th>Print</th><th>Export</th></tr></thead>
+            <tbody>
+              <tr><td class="cust-name">Super Admin</td><td><i data-ic="checkSm"></i></td><td><i data-ic="checkSm"></i></td><td><i data-ic="checkSm"></i></td><td><i data-ic="checkSm"></i></td><td><i data-ic="checkSm"></i></td><td><i data-ic="checkSm"></i></td></tr>
+              <tr><td class="cust-name">Operations Manager</td><td><i data-ic="checkSm"></i></td><td><i data-ic="checkSm"></i></td><td><i data-ic="checkSm"></i></td><td>—</td><td><i data-ic="checkSm"></i></td><td><i data-ic="checkSm"></i></td></tr>
+              <tr><td class="cust-name">QC Supervisor</td><td><i data-ic="checkSm"></i></td><td><i data-ic="checkSm"></i></td><td><i data-ic="checkSm"></i></td><td>—</td><td><i data-ic="checkSm"></i></td><td>—</td></tr>
+              <tr><td class="cust-name">Finance Manager</td><td><i data-ic="checkSm"></i></td><td><i data-ic="checkSm"></i></td><td><i data-ic="checkSm"></i></td><td>—</td><td><i data-ic="checkSm"></i></td><td><i data-ic="checkSm"></i></td></tr>
+              <tr><td class="cust-name">Warehouse Manager</td><td><i data-ic="checkSm"></i></td><td>—</td><td>—</td><td>—</td><td><i data-ic="checkSm"></i></td><td>—</td></tr>
+              <tr><td class="cust-name">View-Only</td><td><i data-ic="checkSm"></i></td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+
+        <div class="tabpanel" id="set-features">
+          <div class="card card-pad">
+            <div class="toggle-row"><div><div class="t-name">B2B Orders</div><div class="t-desc">Allow organizations to place bulk orders</div></div><label class="switch"><input type="checkbox" checked/><span class="slider"></span></label></div>
+            <div class="toggle-row"><div><div class="t-name">B2C Orders</div><div class="t-desc">Allow individual customers to order via Garm App</div></div><label class="switch"><input type="checkbox" checked/><span class="slider"></span></label></div>
+            <div class="toggle-row"><div><div class="t-name">QC Workflow</div><div class="t-desc">Require quality inspection before invoicing</div></div><label class="switch"><input type="checkbox" checked/><span class="slider"></span></label></div>
+            <div class="toggle-row"><div><div class="t-name">Payment Gateway Integration</div><div class="t-desc">Enable Stripe / Razorpay online payments</div></div><label class="switch"><input type="checkbox" checked/><span class="slider"></span></label></div>
+            <div class="toggle-row"><div><div class="t-name">Email Notifications</div><div class="t-desc">Send order &amp; invoice emails automatically</div></div><label class="switch"><input type="checkbox" checked/><span class="slider"></span></label></div>
+            <div class="toggle-row"><div><div class="t-name">SMS Notifications</div><div class="t-desc">Send order status updates via SMS</div></div><label class="switch"><input type="checkbox"/><span class="slider"></span></label></div>
+            <div class="toggle-row"><div><div class="t-name">WhatsApp Integration</div><div class="t-desc">Send order updates via WhatsApp Business</div></div><label class="switch"><input type="checkbox"/><span class="slider"></span></label></div>
+          </div>
+        </div>
+
+        <div class="tabpanel" id="set-company">
+          <div class="card card-pad">
+            <div class="form-grid">
+              <div class="form-field"><label>Company GST Number</label><input value="33AAAAA0000A1Z5"/></div>
+              <div class="form-field"><label>Place of Supply</label><input value="Tamil Nadu"/></div>
+              <div class="form-field"><label>Bank Account Holder</label><input value="Garm Manufacturing Pvt. Ltd."/></div>
+              <div class="form-field"><label>Account Number</label><input value="5021 0043 8812"/></div>
+              <div class="form-field"><label>IFSC Code</label><input value="HDFC0000452"/></div>
+              <div class="form-field"><label>SMTP Email</label><input value="billing@garm.com"/></div>
+              <div class="form-field"><label>Stripe / Razorpay API Key</label><input type="password" value="sk_live_••••••••••••"/></div>
+              <div class="form-field"><label>Default Payment Terms</label><input value="Due within 30 days"/></div>
+            </div>
+            <div style="text-align:right;margin-top:16px;"><button class="btn btn-primary" onclick="showToast('Company settings saved')">Save Changes</button></div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-head"><h3 id="modalTitle">Title</h3><button class="icon-btn" onclick="closeModal()"><i data-ic="x"></i></button></div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-foot"><button class="btn btn-outline" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="modalConfirm()">Confirm</button></div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+/* ============================= ICONS ============================= */
+const ICONS = {
+  grid:'<rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect>',
+  package:'<line x1="16.5" y1="9.4" x2="7.5" y2="4.21"></line><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line>',
+  factory:'<path d="M2 21h20"></path><path d="M4 21V9l5 3.2V9l5 3.2V9l5 3.2V21"></path><path d="M6 9l2.5-2.5L11 9"></path>',
+  shield:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><polyline points="9 12 11 14 15 10"></polyline>',
+  shieldSm:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><polyline points="9 12 11 14 15 10"></polyline>',
+  file:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line>',
+  card:'<rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line>',
+  bar:'<line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line>',
+  settings:'<circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>',
+  search:'<circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>',
+  bell:'<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path>',
+  refresh:'<polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>',
+  chevLeft:'<polyline points="15 18 9 12 15 6"></polyline>',
+  chevRight:'<polyline points="9 18 15 12 9 6"></polyline>',
+  plus:'<line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>',
+  filter:'<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>',
+  printer:'<polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect>',
+  download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line>',
+  mail:'<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22 6 12 13 2 6"></polyline>',
+  x:'<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>',
+  check:'<polyline points="20 6 9 17 4 12"></polyline>',
+  checkSm:'<polyline points="20 6 9 17 4 12"></polyline>',
+  checkCircle:'<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline>',
+  xCircle:'<circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line>',
+  repeat:'<polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path>',
+  rupee:'<path d="M6 3h12"></path><path d="M6 8h12"></path><path d="M6 13h4a4 4 0 1 0 0-8"></path><path d="M6 13l8 8"></path>',
+  clock:'<circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>',
+  arrowUp:'<line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline>',
+  arrowDown:'<line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline>',
+  arrowLeft:'<line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline>',
+  edit:'<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"></path>',
+  eye:'<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>',
+  upload:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line>',
+  tag:'<path d="M20.59 13.41L13.42 20.58a2 2 0 0 1-2.83 0L2.01 12V2h10l8.58 8.58a2 2 0 0 1 0 2.83z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line>',
+  user:'<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>'
+};
+function renderIcons(){
+  document.querySelectorAll('i[data-ic]').forEach(el=>{
+    const name = el.getAttribute('data-ic');
+    const inner = ICONS[name];
+    if(!inner) return;
+    const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.setAttribute('viewBox','0 0 24 24');
+    svg.setAttribute('fill','none');
+    svg.setAttribute('stroke','currentColor');
+    svg.setAttribute('stroke-width','2');
+    svg.setAttribute('stroke-linecap','round');
+    svg.setAttribute('stroke-linejoin','round');
+    svg.innerHTML = inner;
+    el.replaceWith(svg);
+  });
+}
+
+/* ============================= MOCK DATA ============================= */
+const ordersData = [
+  {id:1, no:'ORD-20260701-004', cust:'Acme Corporation', type:'B2B', email:'hr@acmecorp.com', address:'Plot 12, Industrial Area, Bengaluru, KA 560068', qty:180, total:53100, status:'ASSIGNED', qc:'PENDING', pay:'PENDING', mfr:'ABC Garments', date:'2026-07-01',
+    lines:[{p:'Garm Shirt', size:'L', color:'Black', qty:100, unit:250},{p:'Garm Shirt', size:'M', color:'White', qty:80, unit:250}]},
+  {id:2, no:'ORD-20260630-003', cust:'Priya Sharma', type:'B2C', email:'priya.sharma@gmail.com', address:'12B Lake View Apartments, Pune, MH 411001', qty:5, total:1475, status:'DELIVERED', qc:'PASSED', pay:'COMPLETED', mfr:'Vogue Textiles', date:'2026-06-30',
+    lines:[{p:'Garm Polo', size:'M', color:'Navy', qty:5, unit:250}]},
+  {id:3, no:'ORD-20260629-002', cust:'Nova Retail Pvt Ltd', type:'B2B', email:'procurement@novaretail.in', address:'Warehouse 4, MIDC, Nashik, MH 422010', qty:420, total:118500, status:'QC_READY', qc:'PENDING', pay:'PENDING', mfr:'Sunrise Apparel', date:'2026-06-29',
+    lines:[{p:'Garm Cargo Pant', size:'32', color:'Khaki', qty:220, unit:220},{p:'Garm Cargo Pant', size:'34', color:'Black', qty:200, unit:220}]},
+  {id:4, no:'ORD-20260628-001', cust:'Rahul Verma', type:'B2C', email:'rahul.verma@outlook.com', address:'44 MG Road, Indore, MP 452001', qty:3, total:885, status:'PAID', qc:'PASSED', pay:'COMPLETED', mfr:'ABC Garments', date:'2026-06-28',
+    lines:[{p:'Garm Shirt', size:'L', color:'Blue', qty:3, unit:250}]},
+  {id:5, no:'ORD-20260626-009', cust:'Trishul Sportswear', type:'B2B', email:'orders@trishulsports.com', address:'Sector 5, Industrial Estate, Ludhiana, PB 141003', qty:600, total:162000, status:'IN_PROGRESS', qc:'PENDING', pay:'PENDING', mfr:'Sunrise Apparel', date:'2026-06-26',
+    lines:[{p:'Garm Track Jacket', size:'L', color:'Grey', qty:600, unit:225}]},
+  {id:6, no:'ORD-20260624-008', cust:'Meera Iyer', type:'B2C', email:'meera.iyer@gmail.com', address:'8 Anna Nagar, Chennai, TN 600040', qty:2, total:590, status:'SHIPPED', qc:'PASSED', pay:'COMPLETED', mfr:'Vogue Textiles', date:'2026-06-24',
+    lines:[{p:'Garm Polo', size:'S', color:'White', qty:2, unit:250}]},
+  {id:7, no:'ORD-20260622-007', cust:'Blue Horizon Corp', type:'B2B', email:'purchasing@bluehorizon.com', address:'Tower B, Cyber City, Gurugram, HR 122002', qty:250, total:71250, status:'INVOICED', qc:'PASSED', pay:'PARTIAL', mfr:'ABC Garments', date:'2026-06-22',
+    lines:[{p:'Garm Shirt', size:'XL', color:'Black', qty:250, unit:242}]},
+  {id:8, no:'ORD-20260620-006', cust:'Ankit Malhotra', type:'B2C', email:'ankit.m@yahoo.com', address:'21 Park Street, Kolkata, WB 700016', qty:1, total:295, status:'CANCELLED', qc:'PENDING', pay:'PENDING', mfr:'—', date:'2026-06-20',
+    lines:[{p:'Garm Cap', size:'One size', color:'Black', qty:1, unit:250}]},
+  {id:9, no:'ORD-20260618-005', cust:'Nova Retail Pvt Ltd', type:'B2B', email:'procurement@novaretail.in', address:'Warehouse 4, MIDC, Nashik, MH 422010', qty:300, total:82500, status:'NEW', qc:'PENDING', pay:'PENDING', mfr:'—', date:'2026-06-18',
+    lines:[{p:'Garm Cargo Pant', size:'32', color:'Olive', qty:300, unit:233}]},
+  {id:10, no:'ORD-20260615-004', cust:'Divya Krishnan', type:'B2C', email:'divya.k@gmail.com', address:'56 Jubilee Hills, Hyderabad, TG 500033', qty:4, total:1180, status:'QC_APPROVED', qc:'PASSED', pay:'PENDING', mfr:'Vogue Textiles', date:'2026-06-15',
+    lines:[{p:'Garm Polo', size:'L', color:'Maroon', qty:4, unit:250}]}
+];
+
+const manufacturersData = [
+  {id:1, name:'ABC Garments', city:'Tiruppur, TN', cats:['Shirts','Pants'], certs:['ISO 9001','OEKO-TEX'], cap:5000, lead:7, onTime:95, qc:92, status:'ACTIVE', rating:4.8},
+  {id:2, name:'Vogue Textiles', city:'Surat, GJ', cats:['Shirts','Accessories'], certs:['Fair Trade'], cap:3200, lead:10, onTime:89, qc:87, status:'ACTIVE', rating:4.4},
+  {id:3, name:'Sunrise Apparel', city:'Ludhiana, PB', cats:['Pants','Jackets'], certs:['ISO 9001'], cap:6400, lead:9, onTime:91, qc:90, status:'ACTIVE', rating:4.6},
+  {id:4, name:'Coral Weaves', city:'Kolkata, WB', cats:['Shirts'], certs:[], cap:1800, lead:12, onTime:82, qc:85, status:'ON_HOLD', rating:3.9},
+  {id:5, name:'Meridian Textiles', city:'Ahmedabad, GJ', cats:['Accessories'], certs:['OEKO-TEX'], cap:2500, lead:8, onTime:96, qc:94, status:'ACTIVE', rating:4.9},
+  {id:6, name:'Prestige Fabrics', city:'Jaipur, RJ', cats:['Pants','Shirts'], certs:[], cap:4000, lead:11, onTime:78, qc:80, status:'INACTIVE', rating:3.5}
+];
+
+const invoicesData = [
+  {no:'INV-20260701-004', ord:'ORD-20260701-004', cust:'Acme Corporation', email:'hr@acmecorp.com', total:53100, status:'SENT', sent:'01 Jul 2026', due:'31 Jul 2026'},
+  {no:'INV-20260628-001', ord:'ORD-20260628-001', cust:'Rahul Verma', email:'rahul.verma@outlook.com', total:885, status:'PAID', sent:'28 Jun 2026', due:'—'},
+  {no:'INV-20260622-007', ord:'ORD-20260622-007', cust:'Blue Horizon Corp', email:'purchasing@bluehorizon.com', total:71250, status:'PARTIALLY_PAID', sent:'22 Jun 2026', due:'22 Jul 2026'},
+  {no:'INV-20260615-004', ord:'ORD-20260615-004', cust:'Divya Krishnan', email:'divya.k@gmail.com', total:1180, status:'OVERDUE', sent:'15 Jun 2026', due:'25 Jun 2026'},
+  {no:'INV-20260610-002', ord:'ORD-20260610-002', cust:'Nova Retail Pvt Ltd', email:'procurement@novaretail.in', total:96400, status:'DRAFT', sent:'—', due:'—'},
+  {no:'INV-20260602-011', ord:'ORD-20260602-011', cust:'Meera Iyer', email:'meera.iyer@gmail.com', total:590, status:'PAID', sent:'02 Jun 2026', due:'—'}
+];
+
+const paymentsData = [
+  {ord:'ORD-20260628-001', inv:'INV-20260628-001', cust:'Rahul Verma', amount:885, method:'UPI', status:'COMPLETED', date:'28 Jun 2026'},
+  {ord:'ORD-20260622-007', inv:'INV-20260622-007', cust:'Blue Horizon Corp', amount:35625, method:'BANK_TRANSFER', status:'COMPLETED', date:'25 Jun 2026'},
+  {ord:'ORD-20260615-004', inv:'INV-20260615-004', cust:'Divya Krishnan', amount:1180, method:'CARD', status:'PENDING', date:'—'},
+  {ord:'ORD-20260602-011', inv:'INV-20260602-011', cust:'Meera Iyer', amount:590, method:'UPI', status:'COMPLETED', date:'02 Jun 2026'},
+  {ord:'ORD-20260530-014', inv:'INV-20260530-014', cust:'Acme Corporation', amount:12000, method:'CHEQUE', status:'REFUNDED', date:'30 May 2026'},
+  {ord:'ORD-20260520-009', inv:'INV-20260520-009', cust:'Trishul Sportswear', amount:81000, method:'BANK_TRANSFER', status:'PENDING', date:'—'}
+];
+
+const activityFeedData = [
+  {icon:'check', text:'QC inspection passed for ORD-20260630-003', time:'12 minutes ago', tone:'success'},
+  {icon:'card', text:'Payment of ₹35,625 received from Blue Horizon Corp', time:'1 hour ago', tone:'success'},
+  {icon:'factory', text:'ORD-20260701-004 assigned to ABC Garments', time:'3 hours ago', tone:'info'},
+  {icon:'file', text:'Invoice INV-20260701-004 sent to Acme Corporation', time:'5 hours ago', tone:'info'},
+  {icon:'package', text:'New order ORD-20260618-005 placed by Nova Retail Pvt Ltd', time:'Yesterday, 6:40 PM', tone:'purple'},
+  {icon:'xCircle', text:'QC inspection failed for lot #221 — seam quality', time:'Yesterday, 3:12 PM', tone:'danger'}
+];
+
+const alertsData = [
+  {icon:'clock', text:'3 orders overdue for QC inspection (>48 hrs)', tone:'warning'},
+  {icon:'card', text:'Invoice INV-20260615-004 is overdue by 14 days', tone:'danger'},
+  {icon:'factory', text:'Coral Weaves on hold — pending re-verification', tone:'slate'},
+  {icon:'shieldSm', text:'2 orders awaiting manager QC approval', tone:'info'}
+];
+
+const QC_TEMPLATES = {
+  'Shirts':['Color match with reference','Seam quality & stitching','Tag placement & stitching','Fabric quality (no defects)','Print / embroidery clarity','Button attachment','Collar shape','Sleeve length'],
+  'Pants':['Color match','Seam quality','Zipper function','Button / snap attachment','Hem alignment','Tag placement','Fabric quality','Pocket stitching']
+};
+
+const TITLES = {dashboard:'Dashboard', catalog:'Catalog', orders:'Orders', manufacturers:'Manufacturers', qc:'Quality Control', documents:'Documents', payments:'Payments', reports:'Reports & Analytics', settings:'Settings'};
+const ROLE_VIEWS = {
+  'Super Admin':['dashboard','catalog','orders','manufacturers','qc','documents','payments','reports','settings'],
+  'Operations Manager':['dashboard','catalog','orders','manufacturers','payments'],
+  'QC Supervisor':['dashboard','qc'],
+  'Finance Manager':['dashboard','documents','payments','reports'],
+  'Warehouse Manager':['dashboard','orders','documents'],
+  'View-Only':['dashboard','catalog','orders','manufacturers','qc','documents','payments','reports']
+};
+
+/* ---- Catalog data model (Individuals = B2C, Organizations = B2B) ---- */
+let categoriesData = [
+  {id:1, name:'Shirts', appliesTo:['B2C','B2B'], image:null},
+  {id:2, name:'Polos', appliesTo:['B2C'], image:null},
+  {id:3, name:'Accessories', appliesTo:['B2C'], image:null},
+  {id:4, name:'Cargo Pants', appliesTo:['B2C','B2B'], image:null},
+  {id:5, name:'Corporate Uniforms', appliesTo:['B2B'], image:null},
+  {id:6, name:'Track Jackets', appliesTo:['B2B'], image:null}
+];
+let productsData = [
+  {id:1, name:'Garm Shirt', categoryId:1, appliesTo:['B2C','B2B'], price:250, sizes:['XS','S','M','L','XL'], colors:['Black','White','Blue'], moq:50, status:'ACTIVE', image:null},
+  {id:2, name:'Garm Polo', categoryId:2, appliesTo:['B2C'], price:250, sizes:['S','M','L','XL'], colors:['Navy','White','Maroon'], moq:0, status:'ACTIVE', image:null},
+  {id:3, name:'Garm Cap', categoryId:3, appliesTo:['B2C'], price:250, sizes:['One size'], colors:['Black'], moq:0, status:'ACTIVE', image:null},
+  {id:4, name:'Garm Cargo Pant', categoryId:4, appliesTo:['B2C','B2B'], price:220, sizes:['30','32','34','36'], colors:['Khaki','Black','Olive'], moq:50, status:'ACTIVE', image:null},
+  {id:5, name:'Garm Corporate Blazer', categoryId:5, appliesTo:['B2B'], price:1450, sizes:['S','M','L','XL'], colors:['Navy','Charcoal'], moq:20, status:'ACTIVE', image:null},
+  {id:6, name:'Garm Track Jacket', categoryId:6, appliesTo:['B2B'], price:225, sizes:['S','M','L','XL'], colors:['Grey'], moq:100, status:'ACTIVE', image:null},
+  {id:7, name:'Garm Beanie', categoryId:3, appliesTo:['B2C'], price:180, sizes:['One size'], colors:['Grey','Black'], moq:0, status:'INACTIVE', image:null}
+];
+let previewMode = 'B2C';
+let catalogType = 'B2C';
+let currentView = 'dashboard';
+const charts = {};
+let qcResultSelected = null;
+
+/* ============================= HELPERS ============================= */
+function formatINR(n){ return '₹'+Number(n).toLocaleString('en-IN'); }
+function toneFor(status){
+  const map = {NEW:'info', ASSIGNED:'purple', IN_PROGRESS:'warning', QC_READY:'warning', QC_APPROVED:'success', INVOICED:'info', PAID:'success', SHIPPED:'purple', DELIVERED:'success', CANCELLED:'danger',
+    PENDING:'slate', PASSED:'success', FAILED:'danger', REWORK:'warning', PARTIAL:'warning', PARTIALLY_PAID:'warning', COMPLETED:'success', REFUNDED:'slate', DRAFT:'slate', SENT:'info', OVERDUE:'danger',
+    ACTIVE:'success', INACTIVE:'slate', ON_HOLD:'warning'};
+  return map[status] || 'slate';
+}
+function badge(status){ return '<span class="badge tone-'+toneFor(status)+'"><span class="dot"></span>'+status.replace(/_/g,' ')+'</span>'; }
+function resizeAllCharts(){ setTimeout(()=>{ Object.values(charts).forEach(c=>{ try{ c.resize(); }catch(e){} }); }, 30); }
+
+/* ============================= NAVIGATION ============================= */
+function navTo(view){
+  currentView = view;
+  document.querySelectorAll('.nav li[data-view]').forEach(li=>li.classList.toggle('active', li.dataset.view===view));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+view).classList.add('active');
+  document.getElementById('topTitle').textContent = TITLES[view];
+  document.getElementById('content').scrollTop = 0;
+  resizeAllCharts();
+}
+function backTo(view, listId){
+  document.querySelectorAll('#view-'+view+' .subview').forEach(s=>s.classList.remove('active'));
+  document.getElementById(listId).classList.add('active');
+  resizeAllCharts();
+}
+function switchTab(el, panelId){
+  const bar = el.parentElement;
+  bar.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  let sib = bar.nextElementSibling;
+  while(sib && sib.classList.contains('tabpanel')){
+    sib.classList.toggle('active', sib.id===panelId);
+    sib = sib.nextElementSibling;
+  }
+  resizeAllCharts();
+}
+function applyRole(){
+  const role = document.getElementById('roleSelect').value;
+  document.getElementById('roleLabel').textContent = role;
+  const allowed = ROLE_VIEWS[role];
+  document.querySelectorAll('.nav li[data-view]').forEach(li=>{
+    li.style.display = allowed.includes(li.dataset.view) ? '' : 'none';
+  });
+  if(!allowed.includes(currentView)) navTo(allowed[0]);
+  showToast('Now viewing the portal as '+role);
+}
+
+/* ============================= TOAST ============================= */
+function showToast(msg){
+  const wrap = document.getElementById('toastWrap');
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.innerHTML = '<i data-ic="check"></i><span>'+msg+'</span>';
+  wrap.appendChild(t);
+  renderIcons();
+  setTimeout(()=>{ t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(()=>t.remove(),300); }, 3200);
+}
+
+/* ============================= MODAL ============================= */
+let __modalOnConfirm = null;
+function openModal(title, body, confirmLabel, onConfirm){
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = body;
+  const footBtn = document.querySelector('.modal-foot .btn-primary');
+  footBtn.textContent = confirmLabel || 'Save';
+  __modalOnConfirm = onConfirm || (()=>showToast(title+' saved'));
+  document.getElementById('modalOverlay').classList.add('show');
+  renderIcons();
+}
+function closeModal(){ document.getElementById('modalOverlay').classList.remove('show'); }
+function modalConfirm(){ if(__modalOnConfirm) __modalOnConfirm(); closeModal(); }
+
+function manufacturerFormHtml(){
+  return '<div class="form-grid">'+
+    '<div class="form-field"><label>Manufacturer name</label><input placeholder="e.g. Silverline Textiles"/></div>'+
+    '<div class="form-field"><label>Contact person</label><input placeholder="Full name"/></div>'+
+    '<div class="form-field"><label>Email</label><input type="email" placeholder="contact@company.com"/></div>'+
+    '<div class="form-field"><label>Phone</label><input placeholder="+91"/></div>'+
+    '<div class="form-field"><label>City</label><input placeholder="City, State"/></div>'+
+    '<div class="form-field"><label>Categories</label><select><option>Shirts</option><option>Pants</option><option>Accessories</option></select></div>'+
+    '<div class="form-field"><label>Capacity (units/mo)</label><input type="number" placeholder="5000"/></div>'+
+    '<div class="form-field"><label>Lead time (days)</label><input type="number" placeholder="7"/></div>'+
+    '<div class="form-field"><label>Per-unit cost (₹)</label><input type="number" placeholder="180"/></div>'+
+    '<div class="form-field"><label>Minimum order qty</label><input type="number" placeholder="50"/></div>'+
+    '</div>';
+}
+function addUserFormHtml(){
+  return '<div class="form-grid">'+
+    '<div class="form-field full"><label>Full name</label><input placeholder="Jane Doe"/></div>'+
+    '<div class="form-field full"><label>Email</label><input type="email" placeholder="jane@garm.com"/></div>'+
+    '<div class="form-field full"><label>Role</label><select><option>Super Admin</option><option>Operations Manager</option><option>QC Supervisor</option><option>Finance Manager</option><option>Warehouse Manager</option><option>View-Only</option></select></div>'+
+    '</div>';
+}
+function sendInvoiceFormHtml(){
+  return '<div class="form-grid">'+
+    '<div class="form-field full"><label>Recipient email</label><input type="email" value="hr@acmecorp.com"/></div>'+
+    '<div class="form-field full"><label>Message</label><textarea class="ta">Please find attached your invoice. Payment is due within 30 days.</textarea></div>'+
+    '</div>';
+}
+function newOrderFormHtml(){
+  return '<div class="form-grid">'+
+    '<div class="form-field"><label>Customer</label><select><option>Acme Corporation</option><option>Nova Retail Pvt Ltd</option><option>+ Create new customer</option></select></div>'+
+    '<div class="form-field"><label>Customer type</label><select><option>B2B</option><option>B2C</option></select></div>'+
+    '<div class="form-field full"><label>Delivery address</label><input placeholder="Street, city, state, postal code"/></div>'+
+    '<div class="form-field"><label>Product</label><select><option>Garm Shirt</option><option>Garm Polo</option><option>Garm Cargo Pant</option></select></div>'+
+    '<div class="form-field"><label>Quantity</label><input type="number" placeholder="100"/></div>'+
+    '<div class="form-field"><label>Size</label><select><option>S</option><option>M</option><option>L</option><option>XL</option></select></div>'+
+    '<div class="form-field"><label>Color</label><input placeholder="Black"/></div>'+
+    '<div class="form-field full"><label>Notes</label><textarea class="ta" placeholder="Customization, special instructions…"></textarea></div>'+
+    '</div>';
+}
+function assignMfrFormHtml(){
+  return '<div class="form-grid">'+
+    '<div class="form-field full"><label>Select manufacturer</label><select>'+manufacturersData.map(m=>'<option>'+m.name+' ('+m.city+') — '+m.lead+' day lead time</option>').join('')+'</select></div>'+
+    '<div class="form-field full"><label>Estimated delivery date</label><input type="date" value="2026-07-20"/></div>'+
+    '<div class="form-field full"><label>Notes to manufacturer</label><textarea class="ta" placeholder="Special instructions for this order…"></textarea></div>'+
+    '</div>';
+}
+function recordPaymentFormHtml(){
+  return '<div class="form-grid">'+
+    '<div class="form-field full"><label>Order / Invoice</label><select><option>ORD-20260701-004 / INV-20260701-004</option><option>ORD-20260622-007 / INV-20260622-007</option></select></div>'+
+    '<div class="form-field"><label>Amount (₹)</label><input type="number" placeholder="53100"/></div>'+
+    '<div class="form-field"><label>Payment method</label><select><option>Bank Transfer</option><option>Card</option><option>UPI</option><option>Cheque</option><option>Cash</option></select></div>'+
+    '<div class="form-field"><label>Payment date</label><input type="date"/></div>'+
+    '<div class="form-field"><label>Reference number</label><input placeholder="Optional"/></div>'+
+    '<div class="form-field full"><label>Notes</label><textarea class="ta" placeholder="Internal notes about this payment…"></textarea></div>'+
+    '</div>';
+}
+function openNewOrderModal(){ openModal('Create New Order', newOrderFormHtml(), 'Create Order', ()=>showToast('Order created — ORD-20260709-011')); }
+function openAssignModal(){ openModal('Assign to Manufacturer', assignMfrFormHtml(), 'Assign Order', ()=>showToast('Order assigned to manufacturer — status updated')); }
+function openRecordPaymentModal(){ openModal('Record Payment', recordPaymentFormHtml(), 'Save Payment', ()=>showToast('Payment recorded and invoice updated')); }
+
+/* ============================= CATALOG ============================= */
+function typeLabel(t){ return t==='B2C' ? 'Individuals' : 'Organizations'; }
+function typeChips(list){ return '<div class="chip-list">'+list.map(t=>'<span class="tag">'+typeLabel(t)+'</span>').join('')+'</div>'; }
+function categoryThumb(c){ return c.image ? '<img src="'+c.image+'" style="width:100%;height:100%;object-fit:cover;"/>' : '<div class="ph-thumb">'+c.name.charAt(0)+'</div>'; }
+function productThumb(p){ return p.image ? '<img src="'+p.image+'" style="width:100%;height:100%;object-fit:cover;"/>' : '<div class="ph-thumb">'+p.name.replace('Garm ','').charAt(0)+'</div>'; }
+function markSynced(){ const el=document.getElementById('syncStatusText'); if(el) el.textContent='Synced just now'; }
+function handleImagePreview(inputEl, wrapId){
+  const file = inputEl.files && inputEl.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => { document.getElementById(wrapId).innerHTML = '<img src="'+e.target.result+'"/>'; };
+  reader.readAsDataURL(file);
+}
+
+function selectCatalogType(type, el){
+  catalogType = type;
+  document.querySelectorAll('#catTypeTabs .tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('catalogTypeHint').textContent = type==='B2C'
+    ? 'Managing the catalog Individual customers see in the Garm App. Click the tab above to switch to Organizations.'
+    : 'Managing the catalog Organization (B2B) customers see in the Garm App. Click the tab above to switch to Individuals.';
+  renderCategories(); renderProducts();
+  setPreviewMode(type);
+}
+function renderCategories(){
+  document.getElementById('categoriesTable').innerHTML = categoriesData.filter(c=>c.appliesTo.includes(catalogType)).map(c=>{
+    const count = productsData.filter(p=>p.categoryId===c.id).length;
+    return '<tr>'+
+      '<td><div class="thumb-38">'+categoryThumb(c)+'</div></td>'+
+      '<td class="cust-name">'+c.name+'</td>'+
+      '<td>'+typeChips(c.appliesTo)+'</td>'+
+      '<td>'+count+' product'+(count===1?'':'s')+'</td>'+
+      '<td class="row-actions">'+
+        '<button class="icon-btn btn-sm" style="width:30px;height:30px;" onclick="openAddCategoryModal('+c.id+')"><i data-ic="edit"></i></button>'+
+        '<button class="icon-btn btn-sm" style="width:30px;height:30px;" onclick="deleteCategory('+c.id+')"><i data-ic="x"></i></button>'+
+      '</td></tr>';
+  }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px;">No categories yet — add your first one.</td></tr>';
+  renderIcons();
+}
+function deleteCategory(id){
+  if(productsData.some(p=>p.categoryId===id)){ showToast('Move or remove products in this category first'); return; }
+  categoriesData = categoriesData.filter(c=>c.id!==id);
+  renderCategories(); renderLivePreview();
+  showToast('Category removed — Garm App updated');
+  markSynced();
+}
+function openAddCategoryModal(editId){
+  const editing = categoriesData.find(c=>c.id===editId);
+  const body = '<div class="form-grid">'+
+    '<div class="form-field full"><label>Category name</label><input id="catName" value="'+(editing?editing.name:'')+'" placeholder="e.g. Accessories"/></div>'+
+    '<div class="form-field full"><label>Visible to</label><div class="chip-list">'+
+      '<label class="tag"><input type="checkbox" id="catB2C" '+(editing?(editing.appliesTo.includes('B2C')?'checked':''):(catalogType==='B2C'?'checked':''))+'/> Individuals</label>'+
+      '<label class="tag"><input type="checkbox" id="catB2B" '+(editing?(editing.appliesTo.includes('B2B')?'checked':''):(catalogType==='B2B'?'checked':''))+'/> Organizations</label>'+
+    '</div></div>'+
+    '<div class="form-field full"><label>Category image</label><div class="upload-row">'+
+      '<div class="upload-preview" id="catImgPreviewWrap">'+(editing&&editing.image?'<img src="'+editing.image+'"/>':'<div class="upload-placeholder"><i data-ic="upload"></i></div>')+'</div>'+
+      '<input type="file" accept="image/*" onchange="handleImagePreview(this,\'catImgPreviewWrap\')"/>'+
+    '</div></div>'+
+  '</div>';
+  openModal(editing?'Edit Category':'Add Category', body, editing?'Save Changes':'Add Category', ()=>saveCategoryFromModal(editId));
+}
+function saveCategoryFromModal(editId){
+  const name = document.getElementById('catName').value.trim() || 'Untitled Category';
+  const appliesTo = [];
+  if(document.getElementById('catB2C').checked) appliesTo.push('B2C');
+  if(document.getElementById('catB2B').checked) appliesTo.push('B2B');
+  const imgEl = document.querySelector('#catImgPreviewWrap img');
+  const image = imgEl ? imgEl.getAttribute('src') : (editId ? categoriesData.find(c=>c.id===editId).image : null);
+  if(editId){
+    const c = categoriesData.find(x=>x.id===editId);
+    c.name = name; c.appliesTo = appliesTo.length?appliesTo:['B2C','B2B']; c.image = image;
+  } else {
+    categoriesData.push({id:Date.now(), name, appliesTo: appliesTo.length?appliesTo:['B2C','B2B'], image});
+  }
+  renderCategories(); renderLivePreview();
+  showToast('Category saved — pushed live to Garm App');
+  markSynced();
+}
+
+function renderProducts(){
+  const q = (document.getElementById('prodSearch')?.value||'').toLowerCase();
+  const fStatus = document.getElementById('prodFilterStatus')?.value;
+  const rows = productsData.filter(p=>{
+    if(!p.appliesTo.includes(catalogType)) return false;
+    if(q && !p.name.toLowerCase().includes(q)) return false;
+    if(fStatus && p.status!==fStatus) return false;
+    return true;
+  });
+  document.getElementById('productsTable').innerHTML = rows.map(p=>{
+    const cat = categoriesData.find(c=>c.id===p.categoryId);
+    return '<tr>'+
+      '<td><div class="thumb-38">'+productThumb(p)+'</div></td>'+
+      '<td class="cust-name">'+p.name+'</td>'+
+      '<td>'+(cat?cat.name:'—')+'</td>'+
+      '<td>'+typeChips(p.appliesTo)+'</td>'+
+      '<td class="tnum">'+formatINR(p.price)+'</td>'+
+      '<td>'+p.sizes.join(', ')+'</td>'+
+      '<td>'+badge(p.status)+'</td>'+
+      '<td class="row-actions">'+
+        '<button class="icon-btn btn-sm" style="width:30px;height:30px;" onclick="openAddProductModal('+p.id+')"><i data-ic="edit"></i></button>'+
+        '<button class="icon-btn btn-sm" style="width:30px;height:30px;" onclick="toggleProductStatus('+p.id+')"><i data-ic="'+(p.status==='ACTIVE'?'xCircle':'checkCircle')+'"></i></button>'+
+      '</td></tr>';
+  }).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px;">No products match these filters.</td></tr>';
+  renderIcons();
+}
+function toggleProductStatus(id){
+  const p = productsData.find(x=>x.id===id);
+  p.status = p.status==='ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+  renderProducts(); renderLivePreview();
+  showToast(p.name+' '+(p.status==='ACTIVE'?'activated':'deactivated')+' — synced to Garm App');
+  markSynced();
+}
+function openAddProductModal(editId){
+  const editing = productsData.find(p=>p.id===editId);
+  const catOptions = categoriesData.map(c=>'<option value="'+c.id+'" '+(editing&&editing.categoryId===c.id?'selected':'')+'>'+c.name+'</option>').join('');
+  const body = '<div class="form-grid">'+
+    '<div class="form-field full"><label>Product name</label><input id="pName" value="'+(editing?editing.name:'')+'" placeholder="e.g. Garm Hoodie"/></div>'+
+    '<div class="form-field"><label>Category</label><select id="pCategory">'+catOptions+'</select></div>'+
+    '<div class="form-field"><label>Base price (₹)</label><input id="pPrice" type="number" value="'+(editing?editing.price:250)+'"/></div>'+
+    '<div class="form-field full"><label>Visible to</label><div class="chip-list">'+
+      '<label class="tag"><input type="checkbox" id="pB2C" '+(editing?(editing.appliesTo.includes('B2C')?'checked':''):(catalogType==='B2C'?'checked':''))+'/> Individuals</label>'+
+      '<label class="tag"><input type="checkbox" id="pB2B" '+(editing?(editing.appliesTo.includes('B2B')?'checked':''):(catalogType==='B2B'?'checked':''))+'/> Organizations</label>'+
+    '</div></div>'+
+    '<div class="form-field"><label>Sizes (comma separated)</label><input id="pSizes" value="'+(editing?editing.sizes.join(', '):'S, M, L, XL')+'"/></div>'+
+    '<div class="form-field"><label>Colors (comma separated)</label><input id="pColors" value="'+(editing?editing.colors.join(', '):'Black, White')+'"/></div>'+
+    '<div class="form-field"><label>Min. order qty (Organizations)</label><input id="pMoq" type="number" value="'+(editing?editing.moq:50)+'"/></div>'+
+    '<div class="form-field"><label>Status</label><select id="pStatus"><option '+(editing&&editing.status==='INACTIVE'?'':'selected')+'>ACTIVE</option><option '+(editing&&editing.status==='INACTIVE'?'selected':'')+'>INACTIVE</option></select></div>'+
+    '<div class="form-field full"><label>Product image</label><div class="upload-row">'+
+      '<div class="upload-preview" id="pImgPreviewWrap">'+(editing&&editing.image?'<img src="'+editing.image+'"/>':'<div class="upload-placeholder"><i data-ic="upload"></i></div>')+'</div>'+
+      '<input type="file" accept="image/*" onchange="handleImagePreview(this,\'pImgPreviewWrap\')"/>'+
+    '</div></div>'+
+  '</div>';
+  openModal(editing?'Edit Product':'Add Product', body, editing?'Save Changes':'Add Product & Publish', ()=>saveProductFromModal(editId));
+}
+function saveProductFromModal(editId){
+  const name = document.getElementById('pName').value.trim() || 'Untitled Product';
+  const categoryId = Number(document.getElementById('pCategory').value);
+  const price = Number(document.getElementById('pPrice').value) || 0;
+  const appliesTo = [];
+  if(document.getElementById('pB2C').checked) appliesTo.push('B2C');
+  if(document.getElementById('pB2B').checked) appliesTo.push('B2B');
+  const sizes = document.getElementById('pSizes').value.split(',').map(s=>s.trim()).filter(Boolean);
+  const colors = document.getElementById('pColors').value.split(',').map(s=>s.trim()).filter(Boolean);
+  const moq = Number(document.getElementById('pMoq').value) || 0;
+  const status = document.getElementById('pStatus').value;
+  const imgEl = document.querySelector('#pImgPreviewWrap img');
+  const image = imgEl ? imgEl.getAttribute('src') : (editId ? productsData.find(p=>p.id===editId).image : null);
+  if(editId){
+    const p = productsData.find(x=>x.id===editId);
+    Object.assign(p, {name, categoryId, price, appliesTo: appliesTo.length?appliesTo:['B2C','B2B'], sizes, colors, moq, status, image});
+  } else {
+    productsData.push({id:Date.now(), name, categoryId, price, appliesTo: appliesTo.length?appliesTo:['B2C','B2B'], sizes, colors, moq, status, image});
+  }
+  renderProducts(); renderLivePreview();
+  showToast(name+' saved — pushed live to Garm App');
+  markSynced();
+}
+
+function setPreviewMode(mode){
+  previewMode = mode;
+  const label = document.getElementById('phoneViewingAs');
+  if(label) label.textContent = 'Viewing as: '+(mode==='B2C'?'Individuals':'Organizations');
+  renderLivePreview();
+}
+function renderLivePreview(){
+  const cats = categoriesData.filter(c=>c.appliesTo.includes(previewMode));
+  const prods = productsData.filter(p=>p.status==='ACTIVE' && p.appliesTo.includes(previewMode));
+  document.getElementById('phoneCats').innerHTML = cats.map(c=>'<div class="phone-cat-pill">'+c.name+'</div>').join('') || '<div class="small-muted" style="padding:4px 8px;">No categories yet</div>';
+  document.getElementById('phoneGrid').innerHTML = prods.map(p=>
+    '<div class="phone-card"><div class="thumb">'+productThumb(p)+'</div><div class="pc-body"><div class="pc-name">'+p.name+'</div><div class="pc-price">'+formatINR(p.price)+'</div></div></div>'
+  ).join('') || '<div class="small-muted" style="padding:14px;grid-column:1/-1;text-align:center;">No products available for this customer type yet.</div>';
+  renderIcons();
+}
+
+/* ============================= ORDERS ============================= */
+function toggleAllOrders(cb){
+  document.querySelectorAll('.order-chk').forEach(c=>c.checked = cb.checked);
+  updateBulkBar();
+}
+function updateBulkBar(){
+  const n = document.querySelectorAll('.order-chk:checked').length;
+  document.getElementById('bulkbar').classList.toggle('show', n>0);
+  document.getElementById('bulkCount').textContent = n+' selected';
+}
+function resetOrderFilters(){
+  ['f-status','f-type','f-mfr','f-qc','f-pay'].forEach(id=>document.getElementById(id).value='');
+  document.querySelector('#orders-list-view .search-inline input').value='';
+  renderOrders();
+}
+function renderOrders(){
+  const q = (document.querySelector('#orders-list-view .search-inline input')?.value||'').toLowerCase();
+  const fStatus = document.getElementById('f-status').value;
+  const fType = document.getElementById('f-type').value;
+  const fMfr = document.getElementById('f-mfr').value;
+  const fQc = document.getElementById('f-qc').value;
+  const fPay = document.getElementById('f-pay').value;
+  const rows = ordersData.filter(o=>{
+    if(q && !(o.no.toLowerCase().includes(q) || o.cust.toLowerCase().includes(q) || o.email.toLowerCase().includes(q))) return false;
+    if(fStatus && o.status!==fStatus) return false;
+    if(fType && o.type!==fType) return false;
+    if(fMfr && o.mfr!==fMfr) return false;
+    if(fQc && o.qc!==fQc) return false;
+    if(fPay && o.pay!==fPay) return false;
+    return true;
+  });
+  document.getElementById('ordersCount').textContent = rows.length;
+  document.getElementById('ordersTable').innerHTML = rows.map(o=>
+    '<tr class="clickable" onclick="showOrderDetail('+o.id+')">'+
+    '<td onclick="event.stopPropagation()"><input type="checkbox" class="order-chk" onclick="updateBulkBar()"/></td>'+
+    '<td class="tnum">'+o.no+'</td>'+
+    '<td><div class="cust-name">'+o.cust+'</div><div class="cust-sub">'+o.email+'</div></td>'+
+    '<td><span class="tag">'+o.type+'</span></td>'+
+    '<td>'+o.qty+' units</td>'+
+    '<td class="tnum">'+formatINR(o.total)+'</td>'+
+    '<td>'+badge(o.status)+'</td>'+
+    '<td>'+badge(o.qc)+'</td>'+
+    '<td>'+badge(o.pay)+'</td>'+
+    '<td class="row-actions" onclick="event.stopPropagation()">'+
+      '<button class="icon-btn btn-sm" style="width:30px;height:30px;" onclick="showOrderDetail('+o.id+')"><i data-ic="eye"></i></button>'+
+      '<button class="icon-btn btn-sm" style="width:30px;height:30px;" onclick="showToast(\'Printing '+o.no+'…\')"><i data-ic="printer"></i></button>'+
+    '</td></tr>'
+  ).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:26px;">No orders match these filters.</td></tr>';
+  renderIcons();
+}
+function populateMfrFilterSelect(){
+  const sel = document.getElementById('f-mfr');
+  manufacturersData.forEach(m=>{
+    const opt = document.createElement('option');
+    opt.textContent = m.name;
+    sel.appendChild(opt);
+  });
+}
+function showOrderDetail(id){
+  const o = ordersData.find(x=>x.id===id);
+  document.getElementById('od-title').textContent = o.no;
+  document.getElementById('od-status').className = 'badge tone-'+toneFor(o.status);
+  document.getElementById('od-status').innerHTML = '<span class="dot"></span>'+o.status.replace(/_/g,' ');
+  document.getElementById('od-customer').innerHTML =
+    '<div class="info-row"><span class="k">Customer</span><span class="v">'+o.cust+'</span></div>'+
+    '<div class="info-row"><span class="k">Type</span><span class="v"><span class="tag">'+o.type+'</span></span></div>'+
+    '<div class="info-row"><span class="k">Email</span><span class="v">'+o.email+'</span></div>'+
+    '<div class="info-row"><span class="k">Delivery address</span><span class="v" style="max-width:160px;">'+o.address+'</span></div>'+
+    '<div class="info-row"><span class="k">Manufacturer</span><span class="v">'+o.mfr+'</span></div>'+
+    '<div class="info-row"><span class="k">Order date</span><span class="v">'+o.date+'</span></div>';
+  const subtotal = Math.round(o.total/1.18);
+  const tax = o.total - subtotal;
+  document.getElementById('od-items').innerHTML = o.lines.map(l=>
+    '<tr><td>'+l.p+'</td><td>'+l.size+'</td><td>'+l.color+'</td><td>'+l.qty+'</td><td>'+formatINR(l.unit)+'</td><td>'+formatINR(l.qty*l.unit)+'</td></tr>'
+  ).join('');
+  document.getElementById('od-subtotal').textContent = formatINR(subtotal);
+  document.getElementById('od-tax').textContent = formatINR(tax);
+  document.getElementById('od-total').textContent = formatINR(o.total);
+
+  const steps = [
+    {s:'NEW', l:'Order Placed'}, {s:'ASSIGNED', l:'Assigned to Manufacturer'}, {s:'IN_PROGRESS', l:'In Production'},
+    {s:'QC_READY', l:'Awaiting QC'}, {s:'QC_APPROVED', l:'QC Approved'}, {s:'INVOICED', l:'Invoiced'},
+    {s:'PAID', l:'Payment Received'}, {s:'SHIPPED', l:'Shipped'}, {s:'DELIVERED', l:'Delivered'}
+  ];
+  const curIdx = steps.findIndex(s=>s.s===o.status);
+  document.getElementById('od-timeline').innerHTML = steps.map((s,i)=>{
+    let cls = i<curIdx ? 'done' : (i===curIdx ? 'current' : '');
+    let ic = i<=curIdx ? 'check' : 'clock';
+    let time = i<=curIdx ? o.date : 'Pending';
+    return '<li class="'+cls+'"><div class="tdot"><i data-ic="'+ic+'"></i></div><div><div class="tlabel">'+s.l+'</div><div class="ttime">'+time+'</div></div></li>';
+  }).join('');
+  document.querySelectorAll('#view-orders .subview').forEach(s=>s.classList.remove('active'));
+  document.getElementById('orders-detail-view').classList.add('active');
+  renderIcons();
+}
+
+/* ============================= MANUFACTURERS ============================= */
+function renderManufacturers(){
+  document.getElementById('mfrTable').innerHTML = manufacturersData.map(m=>
+    '<tr class="clickable" onclick="showMfrDetail('+m.id+')">'+
+    '<td class="cust-name">'+m.name+'</td>'+
+    '<td>'+m.city+'</td>'+
+    '<td><div class="chip-list">'+m.cats.map(c=>'<span class="tag">'+c+'</span>').join('')+'</div></td>'+
+    '<td>'+m.cap.toLocaleString('en-IN')+'</td>'+
+    '<td>'+m.lead+' days</td>'+
+    '<td>'+m.onTime+'%</td>'+
+    '<td>'+m.qc+'%</td>'+
+    '<td>'+badge(m.status)+'</td>'+
+    '<td class="row-actions" onclick="event.stopPropagation()">'+
+      '<button class="icon-btn btn-sm" style="width:30px;height:30px;" onclick="showMfrDetail('+m.id+')"><i data-ic="eye"></i></button>'+
+    '</td></tr>'
+  ).join('');
+  renderIcons();
+}
+function showMfrDetail(id){
+  const m = manufacturersData.find(x=>x.id===id);
+  document.getElementById('md-name').textContent = m.name;
+  document.getElementById('md-status').textContent = m.status;
+  document.getElementById('md-status').className = 'badge tone-'+toneFor(m.status);
+  const recent = ordersData.filter(o=>o.mfr===m.name).slice(0,6);
+  document.getElementById('md-orders').innerHTML = recent.map(o=>
+    '<tr><td class="tnum">'+o.no+'</td><td>'+o.cust+'</td><td>'+o.qty+'</td><td>'+badge(o.status)+'</td><td>'+o.date+'</td></tr>'
+  ).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:16px;">No recent orders</td></tr>';
+  document.querySelectorAll('#view-manufacturers .subview').forEach(s=>s.classList.remove('active'));
+  document.getElementById('mfr-detail-view').classList.add('active');
+  if(charts.mfrTrendChart) charts.mfrTrendChart.destroy();
+  charts.mfrTrendChart = new Chart(document.getElementById('mfrTrendChart'), {
+    type:'line',
+    data:{ labels:['Wk1','Wk2','Wk3','Wk4','Wk5','Wk6','Wk7','Wk8','Wk9','Wk10','Wk11','Wk12'],
+      datasets:[{ label:'On-time %', data: genTrend(m.onTime, 12), borderColor:'#4f46e5', backgroundColor:'rgba(79,70,229,.08)', tension:.35, fill:true, pointRadius:0, borderWidth:2 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ y:{ min:60, max:100, ticks:{callback:v=>v+'%'} }, x:{grid:{display:false}} } }
+  });
+  renderIcons();
+  resizeAllCharts();
+}
+function genTrend(end, n){
+  const arr=[]; let v = end - (Math.random()*6+4);
+  for(let i=0;i<n-1;i++){ arr.push(Math.max(60,Math.min(99,Math.round(v)))); v += (Math.random()*4-1.2); }
+  arr.push(end);
+  return arr;
+}
+
+/* ============================= QC ============================= */
+function renderQc(){
+  const pending = ordersData.filter(o=>o.status==='QC_READY');
+  document.getElementById('qcTable').innerHTML = pending.map(o=>
+    '<tr><td class="tnum">'+o.no+'</td><td>'+o.mfr+'</td><td>'+o.lines[0].p+'</td><td>'+o.qty+'</td><td>2 days ago</td><td>Unassigned</td>'+
+    '<td style="text-align:right"><button class="btn btn-primary btn-sm" onclick="showQcForm('+o.id+')"><i data-ic="shieldSm"></i> Start Inspection</button></td></tr>'
+  ).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px;">Queue is clear — nothing pending inspection.</td></tr>';
+  renderIcons();
+}
+function showQcForm(id){
+  const o = ordersData.find(x=>x.id===id);
+  document.getElementById('qcf-order').textContent = o.no;
+  const template = QC_TEMPLATES['Shirts'];
+  document.getElementById('qcChecklist').innerHTML = template.map((name,i)=>
+    '<div class="checklist-item">'+
+      '<div class="checklist-name">'+name+'</div>'+
+      '<div class="pf-toggle"><button class="pf-btn pass active" onclick="togglePF(this)">Pass</button><button class="pf-btn fail" onclick="togglePF(this)">Fail</button></div>'+
+      '<input class="mini-input" placeholder="Notes (optional)"/>'+
+      '<button class="photo-btn" onclick="showToast(\'Photo attached\')"><i data-ic="upload"></i></button>'+
+    '</div>'
+  ).join('');
+  qcResultSelected = null;
+  document.querySelectorAll('.result-opt').forEach(r=>r.classList.remove('active'));
+  document.querySelectorAll('#view-qc .subview').forEach(s=>s.classList.remove('active'));
+  document.getElementById('qc-form-view').classList.add('active');
+  renderIcons();
+}
+function togglePF(btn){
+  const group = btn.parentElement;
+  group.querySelectorAll('.pf-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+function setQcResult(type){
+  document.querySelectorAll('.result-opt').forEach(r=>r.classList.remove('active'));
+  document.querySelector('.result-opt.sel-'+type).classList.add('active');
+  qcResultSelected = type;
+}
+function submitQc(){
+  if(!qcResultSelected){ showToast('Select an overall result before submitting'); return; }
+  const msg = qcResultSelected==='pass' ? 'QC passed — invoice auto-generated' : (qcResultSelected==='fail' ? 'QC failed — sent back to manufacturer' : 'Rework requested — manufacturer notified');
+  showToast(msg);
+  backTo('qc','qc-list-view');
+}
+
+/* ============================= DOCUMENTS ============================= */
+function renderInvoices(){
+  document.getElementById('invoiceTable').innerHTML = invoicesData.map((inv,i)=>
+    '<tr class="clickable" onclick="showInvoiceDetail('+i+')">'+
+    '<td class="tnum">'+inv.no+'</td><td>'+inv.ord+'</td>'+
+    '<td><div class="cust-name">'+inv.cust+'</div><div class="cust-sub">'+inv.email+'</div></td>'+
+    '<td class="tnum">'+formatINR(inv.total)+'</td><td>'+badge(inv.status)+'</td><td>'+inv.sent+'</td><td>'+inv.due+'</td>'+
+    '<td class="row-actions" onclick="event.stopPropagation()">'+
+      '<button class="icon-btn btn-sm" style="width:30px;height:30px;" onclick="showInvoiceDetail('+i+')"><i data-ic="eye"></i></button>'+
+      '<button class="icon-btn btn-sm" style="width:30px;height:30px;" onclick="showToast(\'Printing '+inv.no+'…\')"><i data-ic="printer"></i></button>'+
+      '<button class="icon-btn btn-sm" style="width:30px;height:30px;" onclick="openModal(\'Send Invoice\', sendInvoiceFormHtml(), \'Send\', ()=>showToast(\'Invoice emailed to customer\'))"><i data-ic="mail"></i></button>'+
+    '</td></tr>'
+  ).join('');
+  renderIcons();
+}
+function showInvoiceDetail(i){
+  const inv = invoicesData[i];
+  document.getElementById('dp-invno').textContent = inv.no;
+  document.getElementById('dp-ordno').textContent = inv.ord;
+  document.getElementById('dp-custname').textContent = inv.cust;
+  document.getElementById('dp-custemail').textContent = inv.email;
+  document.getElementById('dp-total').textContent = formatINR(inv.total);
+  document.querySelectorAll('#view-documents .subview').forEach(s=>s.classList.remove('active'));
+  document.getElementById('doc-detail-view').classList.add('active');
+}
+
+/* ============================= PAYMENTS ============================= */
+function renderPayments(){
+  document.getElementById('paymentsTable').innerHTML = paymentsData.map(p=>
+    '<tr><td class="tnum">'+p.ord+'</td><td>'+p.inv+'</td><td>'+p.cust+'</td><td class="tnum">'+formatINR(p.amount)+'</td>'+
+    '<td>'+p.method.replace('_',' ')+'</td><td>'+badge(p.status)+'</td><td>'+p.date+'</td>'+
+    '<td class="row-actions">'+
+      '<button class="icon-btn btn-sm" style="width:30px;height:30px;" onclick="openModal(\'Payment Receipt\', receiptHtml(\''+p.ord+'\'), \'Print Receipt\', ()=>window.print())"><i data-ic="eye"></i></button>'+
+    '</td></tr>'
+  ).join('');
+  renderIcons();
+}
+function receiptHtml(ord){
+  const p = paymentsData.find(x=>x.ord===ord);
+  return '<div style="font-size:13px;line-height:1.9;">'+
+    '<div class="info-row"><span class="k">Order</span><span class="v">'+p.ord+'</span></div>'+
+    '<div class="info-row"><span class="k">Invoice</span><span class="v">'+p.inv+'</span></div>'+
+    '<div class="info-row"><span class="k">Customer</span><span class="v">'+p.cust+'</span></div>'+
+    '<div class="info-row"><span class="k">Amount</span><span class="v">'+formatINR(p.amount)+'</span></div>'+
+    '<div class="info-row"><span class="k">Method</span><span class="v">'+p.method.replace('_',' ')+'</span></div>'+
+    '<div class="info-row"><span class="k">Status</span><span class="v">'+badge(p.status)+'</span></div>'+
+    '<div class="info-row"><span class="k">Date</span><span class="v">'+p.date+'</span></div>'+
+  '</div>';
+}
+
+/* ============================= DASHBOARD EXTRAS ============================= */
+function renderDashboardExtras(){
+  const top = [...manufacturersData].sort((a,b)=>b.onTime-a.onTime).slice(0,5);
+  document.getElementById('topMfrTable').innerHTML = top.map(m=>
+    '<tr><td class="cust-name">'+m.name+'</td><td>'+Math.round(m.cap/40)+'</td><td>'+m.onTime+'%</td><td>'+m.qc+'%</td>'+
+    '<td><span class="stars"><i data-ic="check"></i></span> '+m.rating+'</td></tr>'
+  ).join('');
+  document.getElementById('alertsList').innerHTML = alertsData.map(a=>
+    '<div style="display:flex;gap:10px;align-items:flex-start;">'+
+      '<div class="kpi-icon" style="width:30px;height:30px;background:var(--'+a.tone+'-bg,var(--slate-bg));color:var(--'+a.tone+',var(--slate));flex:none;"><i data-ic="'+a.icon+'"></i></div>'+
+      '<div style="font-size:12.6px;line-height:1.5;">'+a.text+'</div>'+
+    '</div>'
+  ).join('');
+  document.getElementById('activityFeed').innerHTML = activityFeedData.map((a,i)=>
+    '<div style="display:flex;gap:12px;padding:11px 0;'+(i<activityFeedData.length-1?'border-bottom:1px solid #f1f3f7;':'')+'">'+
+      '<div class="kpi-icon" style="width:32px;height:32px;background:var(--'+a.tone+'-bg);color:var(--'+a.tone+');flex:none;"><i data-ic="'+a.icon+'"></i></div>'+
+      '<div style="flex:1;"><div style="font-size:13px;font-weight:600;">'+a.text+'</div><div class="small-muted">'+a.time+'</div></div>'+
+    '</div>'
+  ).join('');
+  renderIcons();
+}
+
+/* ============================= CHARTS ============================= */
+function initAllCharts(){
+  Chart.defaults.font.family = "'Inter',system-ui,sans-serif";
+  Chart.defaults.font.size = 11.5;
+  Chart.defaults.color = '#64748b';
+
+  charts.revenueTrendChart = new Chart(document.getElementById('revenueTrendChart'), {
+    type:'line',
+    data:{ labels:['Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul'],
+      datasets:[{ label:'Revenue', data:[142,151,168,159,180,172,195,201,214,208,231,245].map(v=>v*1000), borderColor:'#4f46e5', backgroundColor:'rgba(79,70,229,.08)', fill:true, tension:.35, pointRadius:0, borderWidth:2.5 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>formatINR(c.raw)}}},
+      scales:{ y:{ ticks:{ callback:v=>'₹'+(v/1000)+'k' }, grid:{color:'#f1f3f7'} }, x:{ grid:{display:false} } } }
+  });
+
+  charts.pipelineChart = new Chart(document.getElementById('pipelineChart'), {
+    type:'bar',
+    data:{ labels:['New','Assigned','In Progress','QC','Invoiced','Paid'],
+      datasets:[{ data:[9,15,22,15,12,8], backgroundColor:['#2563eb','#7c3aed','#d97706','#d97706','#2563eb','#059669'], borderRadius:6, barThickness:16 }] },
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{grid:{color:'#f1f3f7'}}, y:{grid:{display:false}} } }
+  });
+
+  charts.qcTrendChart = new Chart(document.getElementById('qcTrendChart'), {
+    type:'line',
+    data:{ labels:Array.from({length:10},(_,i)=>'D'+(i*3+1)),
+      datasets:[{ label:'Pass rate', data:[88,90,89,91,93,92,94,91,93,92], borderColor:'#059669', backgroundColor:'rgba(5,150,105,.08)', fill:true, tension:.35, pointRadius:0, borderWidth:2.5 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ y:{min:70,max:100, ticks:{callback:v=>v+'%'}, grid:{color:'#f1f3f7'}}, x:{grid:{display:false}} } }
+  });
+
+  charts.repRevenueChart = new Chart(document.getElementById('repRevenueChart'), {
+    type:'bar',
+    data:{ labels:['Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul'],
+      datasets:[{ data:[142,151,168,159,180,172,195,201,214,208,231,245].map(v=>v*1000), backgroundColor:'#4f46e5', borderRadius:5, barThickness:14 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ y:{ticks:{callback:v=>'₹'+(v/1000)+'k'}, grid:{color:'#f1f3f7'}}, x:{grid:{display:false}} } }
+  });
+
+  charts.repB2bChart = new Chart(document.getElementById('repB2bChart'), {
+    type:'doughnut',
+    data:{ labels:['B2B','B2C'], datasets:[{ data:[68,32], backgroundColor:['#4f46e5','#a5b4fc'], borderWidth:0 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, cutout:'68%' }
+  });
+
+  charts.repOrdersChart = new Chart(document.getElementById('repOrdersChart'), {
+    type:'bar',
+    data:{ labels:['New','Assigned','In Progress','QC','Invoiced','Paid','Shipped','Delivered','Cancelled'],
+      datasets:[{ data:[9,15,22,15,12,8,10,26,4], backgroundColor:'#2563eb', borderRadius:5 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{grid:{display:false}}, y:{grid:{color:'#f1f3f7'}} } }
+  });
+
+  charts.repQcChart = new Chart(document.getElementById('repQcChart'), {
+    type:'doughnut',
+    data:{ labels:['Pass','Fail','Rework'], datasets:[{ data:[92,5,3], backgroundColor:['#059669','#dc2626','#d97706'], borderWidth:0 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, cutout:'68%' }
+  });
+
+  charts.repMfrChart = new Chart(document.getElementById('repMfrChart'), {
+    type:'bar',
+    data:{ labels:manufacturersData.map(m=>m.name),
+      datasets:[
+        { label:'On-time %', data:manufacturersData.map(m=>m.onTime), backgroundColor:'#4f46e5', borderRadius:5, barThickness:14 },
+        { label:'QC pass %', data:manufacturersData.map(m=>m.qc), backgroundColor:'#a5b4fc', borderRadius:5, barThickness:14 }
+      ] },
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, scales:{ x:{min:0,max:100, grid:{color:'#f1f3f7'}}, y:{grid:{display:false}} } }
+  });
+}
+
+/* ============================= INIT ============================= */
+document.addEventListener('DOMContentLoaded', ()=>{
+  renderIcons();
+  populateMfrFilterSelect();
+  renderCategories();
+  renderProducts();
+  renderLivePreview();
+  renderOrders();
+  renderManufacturers();
+  renderQc();
+  renderInvoices();
+  renderPayments();
+  renderDashboardExtras();
+  initAllCharts();
+});
+</script>
+</body>
+</html>
