@@ -696,6 +696,26 @@ export const db = {
     // for EVERYONE, not just that record).
     return data.users.find((u) => String(u.email || '').trim().toLowerCase() === clean);
   },
+  // Ensure a Super Admin exists for the given email (set via SUPER_ADMIN_EMAIL).
+  // Lets you sign into the deployed admin portal with YOUR OWN email instead of
+  // the built-in demo address (haneef@garm.com), whose inbox you don't control.
+  // Idempotent: promotes an existing user or creates one; runs on every boot.
+  ensureSuperAdmin(email) {
+    const clean = String(email || '').trim().toLowerCase();
+    if (!clean || !clean.includes('@')) return null;
+    let user = this.getUserByEmail(clean);
+    if (user) {
+      if (user.role !== 'Super Admin' || user.status !== 'Active') {
+        user.role = 'Super Admin'; user.status = 'Active'; persist();
+      }
+      return user;
+    }
+    const id = data.meta.nextUserId++;
+    user = { id, name: 'Owner', email: clean, role: 'Super Admin', status: 'Active', lastLogin: null };
+    data.users.push(user);
+    persist();
+    return user;
+  },
   createUser(input) {
     if (this.getUserByEmail(input.email)) return { error: 'A user with this email already exists' };
     const id = data.meta.nextUserId++;

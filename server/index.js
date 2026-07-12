@@ -966,6 +966,13 @@ connectMongo().catch(() => {
   console.error('[mongo] Starting anyway — every /api/orders and /api/garm/orders|quotes|track route will fail until MONGODB_URI is reachable.');
 });
 
+// Let the deployer sign in as Super Admin with their OWN email (so the OTP goes
+// to a real inbox in production). Set SUPER_ADMIN_EMAIL in the environment.
+if (process.env.SUPER_ADMIN_EMAIL) {
+  const u = db.ensureSuperAdmin(process.env.SUPER_ADMIN_EMAIL);
+  if (u) console.log(`[admin] Super Admin ready: ${u.email}`);
+}
+
 server.listen(PORT, () => {
   console.log(`Garm Admin backend listening on http://localhost:${PORT}`);
   console.log(`Live push stream: http://localhost:${PORT}/api/events (Server-Sent Events)`);
