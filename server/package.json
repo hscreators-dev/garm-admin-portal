@@ -3,13 +3,18 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Real backend for the Garm Admin Portal — REST API + live push (Server-Sent Events) to the Garm customer app. Zero external dependencies: pure Node.js, no npm install required.",
+  "description": "Real backend for the Garm Admin Portal — REST API + live push (Server-Sent Events) to the Garm customer app. Catalog/settings/employees stay zero-dependency file storage; Orders/Quotes are read from the same MongoDB the Garm App's own backend (Latest version of FAB/backend) uses, via mongoose — run `npm install` once before starting.",
   "scripts": {
     "dev": "node --watch index.js",
     "start": "node index.js",
+    "verify-db": "node verify-db.js",
     "seed:reset": "node reset-db.js",
     "simulate": "node simulate-order.js"
   },
-  "dependencies": {},
-  "engines": { "node": ">=18" }
+  "dependencies": {
+    "mongoose": "^8.24.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
 }

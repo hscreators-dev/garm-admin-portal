@@ -1,12 +1,39 @@
 // Stand-in for the real Garm customer app until it's wired in.
 // Places one realistic order against the running backend so you can see the
-// full loop work: this script -> POST /api/orders -> WebSocket 'order:created'
+// full loop work: this script -> POST /api/orders -> live push 'order:created'
 // -> admin Dashboard shows a live notification, no refresh needed.
+//
+// POST /api/orders now requires an admin session (every /api/* admin route
+// does, since the security hardening pass — see server/README.md), so this
+// script signs in as the seeded Super Admin first, the same OTP flow the
+// admin portal itself uses (grabbing the dev-mode code straight from the
+// response, since OTP_DEV_MODE defaults on with no real email gateway wired up).
 //
 // Usage:  node simulate-order.js  [--type=B2B|B2C]
 //   (make sure `npm run dev` is running in another terminal first)
 
-const API_URL = process.env.API_URL || 'http://localhost:5000';
+const API_URL = process.env.API_URL || 'http://localhost:5050';
+const ADMIN_EMAIL = process.env.SIMULATE_ADMIN_EMAIL || 'haneef@garm.com';
+
+async function signInAsAdmin() {
+  const sendRes = await fetch(`${API_URL}/api/auth/admin/send-otp`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: ADMIN_EMAIL }),
+  });
+  const sendBody = await sendRes.json();
+  if (!sendBody.devCode) {
+    console.error(`No dev OTP code returned for ${ADMIN_EMAIL} — is that email seeded as an active admin, and is OTP_DEV_MODE on?`);
+    process.exit(1);
+  }
+  const verifyRes = await fetch(`${API_URL}/api/auth/admin/verify-otp`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: ADMIN_EMAIL, otp: sendBody.devCode }),
+  });
+  const verifyBody = await verifyRes.json();
+  if (!verifyBody.token) {
+    console.error('Could not sign in as admin for the simulation:', verifyBody.error || verifyBody);
+    process.exit(1);
+  }
+  return verifyBody.token;
+}
 
 const individualsOrders = [
   { cust: 'Kavya Menon', type: 'B2C', email: 'kavya.menon@gmail.com', address: '19 Palm Grove, Kochi, KL 682020',
@@ -26,9 +53,11 @@ const typeArg = process.argv.find((a) => a.startsWith('--type='))?.split('=')[1]
 const pool = typeArg === 'B2B' ? organizationOrders : typeArg === 'B2C' ? individualsOrders : [...individualsOrders, ...organizationOrders];
 const order = pool[Math.floor(Math.random() * pool.length)];
 
+const token = await signInAsAdmin();
+
 const res = await fetch(`${API_URL}/api/orders`, {
   method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
   body: JSON.stringify(order),
 }).catch((err) => {
   console.error(`Could not reach backend at ${API_URL}. Is 'npm run dev' running in server/?`);

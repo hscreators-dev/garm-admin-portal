@@ -1,36 +1,85 @@
 export type OrderStatus =
-  | 'NEW' | 'ASSIGNED' | 'IN_PROGRESS' | 'QC_READY' | 'QC_APPROVED'
+  | 'NEW' | 'CONFIRMED' | 'ASSIGNED' | 'IN_PROGRESS' | 'QC_READY' | 'QC_APPROVED'
   | 'INVOICED' | 'PAID' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
-export type QcStatus = 'PENDING' | 'PASSED' | 'FAILED' | 'REWORK';
+// 'N/A' = Individual (B2C) orders — they skip in-house QC entirely, only
+// Organisation (B2B) manufacturing runs go through inspection.
+export type QcStatus = 'PENDING' | 'PASSED' | 'FAILED' | 'REWORK' | 'N/A';
 export type PayStatus = 'PENDING' | 'PARTIAL' | 'COMPLETED';
 
 export interface OrderLine { p: string; size: string; color: string; qty: number; unit: number; }
+export interface OrderSizeEntry { label: string; qty: number; }
+export interface OrderColorEntry { hex: string; pantone?: string; label: string; position?: string; }
+export interface OrderAccessoryItem { categoryId: string; categoryLabel: string; itemName: string; qty: number; }
+export interface OrderDocument {
+  id: string;
+  name: string;
+  kind: 'INVOICE' | 'QUOTATION' | 'BILLING' | 'DESIGN' | 'OTHER';
+  uploadedBy: 'admin' | 'customer';
+  dataUrl: string;
+  createdAt: string | null;
+}
 export interface Order {
   id: number; no: string; cust: string; type: 'B2B' | 'B2C'; email: string; address: string;
   qty: number; total: number; status: OrderStatus; qc: QcStatus; pay: PayStatus; mfr: string; date: string;
   lines: OrderLine[];
+  // Full order record from the shared MongoDB — everything the customer
+  // configured in the Garm App, plus payment/contact/assignment details.
+  orderRef?: string;
+  persona?: 'organisation' | 'individual';
+  isAccessoryOrder?: boolean;
+  orgType?: string | null;
+  orgName?: string | null;
+  service?: string | null;
+  serviceLabel?: string | null;
+  garmentType?: string | null;
+  fabric?: string | null;
+  gsm?: string | null;
+  weave?: string | null;
+  fabricSource?: string | null;
+  sizes?: OrderSizeEntry[];
+  colors?: OrderColorEntry[];
+  accessoryItems?: OrderAccessoryItem[];
+  stitching?: string | null;
+  packaging?: string | null;
+  contactName?: string | null;
+  contactPhone?: string | null;
+  contactEmail?: string | null;
+  deliveryAddress?: string | null;
+  deliveryCity?: string | null;
+  deliveryPin?: string | null;
+  notes?: string | null;
+  etaDate?: string | null;
+  quoteAmount?: number | null;
+  serviceFee?: number;
+  paymentStatus?: string;          // customer-side: unpaid | partial | paid
+  paymentMode?: string | null;     // UPI / Card / Bank transfer…
+  paymentDate?: string | null;
+  paymentReference?: string | null;
+  confirmedAt?: string | null;
+  assignedEmployee?: string | null;
+  documents?: OrderDocument[];
 }
 
 export const ordersData: Order[] = [
   {id:1, no:'ORD-20260701-004', cust:'Acme Corporation', type:'B2B', email:'hr@acmecorp.com', address:'Plot 12, Industrial Area, Bengaluru, KA 560068', qty:180, total:53100, status:'ASSIGNED', qc:'PENDING', pay:'PENDING', mfr:'ABC Garments', date:'2026-07-01',
     lines:[{p:'Garm Shirt', size:'L', color:'Black', qty:100, unit:250},{p:'Garm Shirt', size:'M', color:'White', qty:80, unit:250}]},
-  {id:2, no:'ORD-20260630-003', cust:'Priya Sharma', type:'B2C', email:'priya.sharma@gmail.com', address:'12B Lake View Apartments, Pune, MH 411001', qty:5, total:1475, status:'DELIVERED', qc:'PASSED', pay:'COMPLETED', mfr:'Vogue Textiles', date:'2026-06-30',
+  {id:2, no:'ORD-20260630-003', cust:'Priya Sharma', type:'B2C', email:'priya.sharma@gmail.com', address:'12B Lake View Apartments, Pune, MH 411001', qty:5, total:1475, status:'DELIVERED', qc:'N/A', pay:'COMPLETED', mfr:'Vogue Textiles', date:'2026-06-30',
     lines:[{p:'Garm Polo', size:'M', color:'Navy', qty:5, unit:250}]},
   {id:3, no:'ORD-20260629-002', cust:'Nova Retail Pvt Ltd', type:'B2B', email:'procurement@novaretail.in', address:'Warehouse 4, MIDC, Nashik, MH 422010', qty:420, total:118500, status:'QC_READY', qc:'PENDING', pay:'PENDING', mfr:'Sunrise Apparel', date:'2026-06-29',
     lines:[{p:'Garm Cargo Pant', size:'32', color:'Khaki', qty:220, unit:220},{p:'Garm Cargo Pant', size:'34', color:'Black', qty:200, unit:220}]},
-  {id:4, no:'ORD-20260628-001', cust:'Rahul Verma', type:'B2C', email:'rahul.verma@outlook.com', address:'44 MG Road, Indore, MP 452001', qty:3, total:885, status:'PAID', qc:'PASSED', pay:'COMPLETED', mfr:'ABC Garments', date:'2026-06-28',
+  {id:4, no:'ORD-20260628-001', cust:'Rahul Verma', type:'B2C', email:'rahul.verma@outlook.com', address:'44 MG Road, Indore, MP 452001', qty:3, total:885, status:'PAID', qc:'N/A', pay:'COMPLETED', mfr:'ABC Garments', date:'2026-06-28',
     lines:[{p:'Garm Shirt', size:'L', color:'Blue', qty:3, unit:250}]},
   {id:5, no:'ORD-20260626-009', cust:'Trishul Sportswear', type:'B2B', email:'orders@trishulsports.com', address:'Sector 5, Industrial Estate, Ludhiana, PB 141003', qty:600, total:162000, status:'IN_PROGRESS', qc:'PENDING', pay:'PENDING', mfr:'Sunrise Apparel', date:'2026-06-26',
     lines:[{p:'Garm Track Jacket', size:'L', color:'Grey', qty:600, unit:225}]},
-  {id:6, no:'ORD-20260624-008', cust:'Meera Iyer', type:'B2C', email:'meera.iyer@gmail.com', address:'8 Anna Nagar, Chennai, TN 600040', qty:2, total:590, status:'SHIPPED', qc:'PASSED', pay:'COMPLETED', mfr:'Vogue Textiles', date:'2026-06-24',
+  {id:6, no:'ORD-20260624-008', cust:'Meera Iyer', type:'B2C', email:'meera.iyer@gmail.com', address:'8 Anna Nagar, Chennai, TN 600040', qty:2, total:590, status:'SHIPPED', qc:'N/A', pay:'COMPLETED', mfr:'Vogue Textiles', date:'2026-06-24',
     lines:[{p:'Garm Polo', size:'S', color:'White', qty:2, unit:250}]},
   {id:7, no:'ORD-20260622-007', cust:'Blue Horizon Corp', type:'B2B', email:'purchasing@bluehorizon.com', address:'Tower B, Cyber City, Gurugram, HR 122002', qty:250, total:71250, status:'INVOICED', qc:'PASSED', pay:'PARTIAL', mfr:'ABC Garments', date:'2026-06-22',
     lines:[{p:'Garm Shirt', size:'XL', color:'Black', qty:250, unit:242}]},
-  {id:8, no:'ORD-20260620-006', cust:'Ankit Malhotra', type:'B2C', email:'ankit.m@yahoo.com', address:'21 Park Street, Kolkata, WB 700016', qty:1, total:295, status:'CANCELLED', qc:'PENDING', pay:'PENDING', mfr:'—', date:'2026-06-20',
+  {id:8, no:'ORD-20260620-006', cust:'Ankit Malhotra', type:'B2C', email:'ankit.m@yahoo.com', address:'21 Park Street, Kolkata, WB 700016', qty:1, total:295, status:'CANCELLED', qc:'N/A', pay:'PENDING', mfr:'—', date:'2026-06-20',
     lines:[{p:'Garm Cap', size:'One size', color:'Black', qty:1, unit:250}]},
   {id:9, no:'ORD-20260618-005', cust:'Nova Retail Pvt Ltd', type:'B2B', email:'procurement@novaretail.in', address:'Warehouse 4, MIDC, Nashik, MH 422010', qty:300, total:82500, status:'NEW', qc:'PENDING', pay:'PENDING', mfr:'—', date:'2026-06-18',
     lines:[{p:'Garm Cargo Pant', size:'32', color:'Olive', qty:300, unit:233}]},
-  {id:10, no:'ORD-20260615-004', cust:'Divya Krishnan', type:'B2C', email:'divya.k@gmail.com', address:'56 Jubilee Hills, Hyderabad, TG 500033', qty:4, total:1180, status:'QC_APPROVED', qc:'PASSED', pay:'PENDING', mfr:'Vogue Textiles', date:'2026-06-15',
+  {id:10, no:'ORD-20260615-004', cust:'Divya Krishnan', type:'B2C', email:'divya.k@gmail.com', address:'56 Jubilee Hills, Hyderabad, TG 500033', qty:4, total:1180, status:'INVOICED', qc:'N/A', pay:'PENDING', mfr:'Vogue Textiles', date:'2026-06-15',
     lines:[{p:'Garm Polo', size:'L', color:'Maroon', qty:4, unit:250}]},
 ];
 
@@ -98,19 +147,19 @@ export const QC_TEMPLATES: Record<string, string[]> = {
 };
 
 export const TITLES: Record<string, string> = {
-  dashboard:'Dashboard', orders:'Orders', manufacturers:'Manufacturers', qc:'Quality Control',
+  dashboard:'Dashboard', catalog:'Catalog', orders:'Orders', manufacturers:'Manufacturers', qc:'Quality Control',
   documents:'Documents', payments:'Payments', reports:'Reports & Analytics', settings:'Settings',
 };
 
 export type Role = 'Super Admin' | 'Operations Manager' | 'QC Supervisor' | 'Finance Manager' | 'Warehouse Manager' | 'View-Only';
 
 export const ROLE_VIEWS: Record<Role, string[]> = {
-  'Super Admin': ['dashboard','orders','manufacturers','qc','documents','payments','reports','settings'],
-  'Operations Manager': ['dashboard','orders','manufacturers','payments'],
+  'Super Admin': ['dashboard','catalog','orders','manufacturers','qc','documents','payments','support','reports','settings'],
+  'Operations Manager': ['dashboard','catalog','orders','manufacturers','payments','support'],
   'QC Supervisor': ['dashboard','qc'],
   'Finance Manager': ['dashboard','documents','payments','reports'],
   'Warehouse Manager': ['dashboard','orders','documents'],
-  'View-Only': ['dashboard','orders','manufacturers','qc','documents','payments','reports'],
+  'View-Only': ['dashboard','catalog','orders','manufacturers','qc','documents','payments','support','reports'],
 };
 
 export function formatINR(n: number): string {
@@ -119,9 +168,9 @@ export function formatINR(n: number): string {
 
 export function toneFor(status: string): string {
   const map: Record<string, string> = {
-    NEW:'info', ASSIGNED:'purple', IN_PROGRESS:'warning', QC_READY:'warning', QC_APPROVED:'success',
+    NEW:'info', CONFIRMED:'success', ASSIGNED:'purple', IN_PROGRESS:'warning', QC_READY:'warning', QC_APPROVED:'success',
     INVOICED:'info', PAID:'success', SHIPPED:'purple', DELIVERED:'success', CANCELLED:'danger',
-    PENDING:'slate', PASSED:'success', FAILED:'danger', REWORK:'warning', PARTIAL:'warning',
+    PENDING:'slate', PASSED:'success', FAILED:'danger', REWORK:'warning', 'N/A':'slate', PARTIAL:'warning',
     PARTIALLY_PAID:'warning', COMPLETED:'success', REFUNDED:'slate', DRAFT:'slate', SENT:'info', OVERDUE:'danger',
     ACTIVE:'success', INACTIVE:'slate', ON_HOLD:'warning',
   };

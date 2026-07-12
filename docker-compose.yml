@@ -1,0 +1,105 @@
+# ─── Garm — full stack, one command ───────────────────────────────────────────
+# Runs: MongoDB + the two backends + the two frontends. From THIS folder:
+#     cp .env.deploy.example .env      # then fill in the secrets
+#     docker compose up -d --build
+#
+# Access:
+#   Customer app  → http://<host>:8080
+#   Admin portal  → http://<host>:8081/garm-admin-portal/
+# Put a TLS reverse proxy (Caddy/Traefik/nginx) or your cloud LB in front for HTTPS.
+#
+# The two frontend build contexts reference the sibling "Latest version of FAB"
+# folder, so keep both project folders next to each other.
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db   # your real data lives here, survives restarts/redeploys
+    # Not published to the host — only the backends reach it on the internal network.
+    # Healthcheck so the backends don't start talking to Mongo before it's ready.
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  fab-backend:
+    build: ../Latest version of FAB/backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: "4000"
+      MONGODB_URI: mongodb://mongo:27017/garm
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      FRONTEND_URL: ${CUSTOMER_APP_URL}
+      # OTP delivery (see OTP_SETUP.md)
+      SMS_PROVIDER: ${SMS_PROVIDER:-console}
+      SMS_API_URL: ${SMS_API_URL:-}
+      SMS_API_KEY: ${SMS_API_KEY:-}
+      SMS_SENDER: ${SMS_SENDER:-GARM}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      EMAIL_FROM: ${EMAIL_FROM:-no-reply@garm.app}
+      OTP_APP_NAME: Garm
+      # Payments (see SECURITY M1). Leave gateway off until you wire one.
+      PAYMENTS_REQUIRE_GATEWAY: ${PAYMENTS_REQUIRE_GATEWAY:-false}
+      PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  admin-backend:
+    build: ./server
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: "5050"
+      MONGODB_URI: mongodb://mongo:27017/garm
+      GARM_SECRET_KEY: ${GARM_SECRET_KEY:?set GARM_SECRET_KEY (64 hex) in .env}
+      ALLOWED_ORIGINS: ${CUSTOMER_APP_URL},${ADMIN_APP_URL}
+      OTP_APP_NAME: Garm
+      SMS_PROVIDER: ${SMS_PROVIDER:-console}
+      SMS_API_URL: ${SMS_API_URL:-}
+      SMS_API_KEY: ${SMS_API_KEY:-}
+      SMS_SENDER: ${SMS_SENDER:-GARM}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-}
+      EMAIL_API_URL: ${EMAIL_API_URL:-}
+      EMAIL_API_KEY: ${EMAIL_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-no-reply@garm.app}
+      DB_FILE: /data/db.json          # catalog/settings persisted to the volume
+    volumes:
+      - admin-data:/data
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  customer-app:
+    build:
+      context: ../Latest version of FAB
+      args:
+        VITE_API_URL: /api
+        VITE_ADMIN_API_URL: /admin-api/garm
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on: [fab-backend, admin-backend]
+
+  admin-app:
+    build:
+      context: .
+      args:
+        VITE_API_URL: ""      # same-origin; nginx proxies /api → admin-backend
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    depends_on: [admin-backend]
+
+volumes:
+  mongo-data:
+  admin-data:

@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Backend secrets/data — never commit. The encryption key protects every
+# customer's PII at rest; db.json is the live database (encrypted fields,
+# but still the real data). See server/README.md.
+server/.server-secret
+server/db.json
+.env
+.env.local

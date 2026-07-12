@@ -1,14 +1,51 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Icon from '../components/Icon';
 import ChartCanvas from '../components/ChartCanvas';
+import AudienceTabs, { type AudienceFilter } from '../components/AudienceTabs';
 import { useToast } from '../components/Toast';
-import { manufacturersData } from '../data/mockData';
+import { useOrders } from '../api/useOrders';
+import { formatINR, manufacturersData, type Order } from '../data/mockData';
 
 const TABS = ['Revenue', 'Orders', 'QC', 'Manufacturer', 'Custom Builder'];
 
 export default function Reports() {
   const showToast = useToast();
   const [tab, setTab] = useState(0);
+  const { orders } = useOrders();
+  const [audience, setAudience] = useState<AudienceFilter>('ALL');
+
+  // Live numbers from the shared order book, scoped by customer type.
+  const scoped = useMemo(() => orders.filter((o) => audience === 'ALL' || o.type === audience), [orders, audience]);
+  const amount = (o: Order) => o.total || o.quoteAmount || 0;
+  const activeOrders = scoped.filter((o) => o.status !== 'CANCELLED');
+  const revenue = activeOrders.filter((o) => o.pay === 'COMPLETED').reduce((s, o) => s + amount(o), 0);
+  const aov = activeOrders.length ? Math.round(activeOrders.reduce((s, o) => s + amount(o), 0) / activeOrders.length) : 0;
+  const cancelRate = scoped.length ? Math.round((scoped.filter((o) => o.status === 'CANCELLED').length / scoped.length) * 100) : 0;
+  const b2bRevenue = orders.filter((o) => o.type === 'B2B' && o.status !== 'CANCELLED').reduce((s, o) => s + amount(o), 0);
+  const b2cRevenue = orders.filter((o) => o.type === 'B2C' && o.status !== 'CANCELLED').reduce((s, o) => s + amount(o), 0);
+  const topCustomers = useMemo(() => {
+    const byCust = new Map<string, { type: string; count: number; revenue: number }>();
+    for (const o of activeOrders) {
+      const e = byCust.get(o.cust) || { type: o.type, count: 0, revenue: 0 };
+      e.count += 1; e.revenue += amount(o);
+      byCust.set(o.cust, e);
+    }
+    return [...byCust.entries()].sort((a, b) => b[1].revenue - a[1].revenue).slice(0, 6);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scoped]);
+  const statusLabels = ['New', 'Confirmed', 'Paid', 'Assigned', 'In Progress', 'QC', 'Invoiced', 'Shipped', 'Delivered', 'Cancelled'];
+  const statusData = [
+    scoped.filter((o) => o.status === 'NEW').length,
+    scoped.filter((o) => o.status === 'CONFIRMED').length,
+    scoped.filter((o) => o.status === 'PAID').length,
+    scoped.filter((o) => o.status === 'ASSIGNED').length,
+    scoped.filter((o) => o.status === 'IN_PROGRESS').length,
+    scoped.filter((o) => ['QC_READY', 'QC_APPROVED'].includes(o.status)).length,
+    scoped.filter((o) => o.status === 'INVOICED').length,
+    scoped.filter((o) => o.status === 'SHIPPED').length,
+    scoped.filter((o) => o.status === 'DELIVERED').length,
+    scoped.filter((o) => o.status === 'CANCELLED').length,
+  ];
 
   return (
     <div>
@@ -19,6 +56,9 @@ export default function Reports() {
           <button className="btn btn-outline" onClick={() => showToast('Report exported as PDF')}><Icon name="printer" /> Export PDF</button>
         </div>
       </div>
+      <AudienceTabs value={audience} onChange={setAudience} showAll
+        counts={{ b2c: orders.filter((o) => o.type === 'B2C').length, b2b: orders.filter((o) => o.type === 'B2B').length }} />
+
       <div className="tabs">
         {TABS.map((t, i) => <div className={`tab ${tab === i ? 'active' : ''}`} key={t} onClick={() => setTab(i)}>{t}</div>)}
       </div>
@@ -33,20 +73,21 @@ export default function Reports() {
                   height={90}
                   config={{
                     type: 'bar',
-                    data: { labels: ['Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul'], datasets: [{ data: [142,151,168,159,180,172,195,201,214,208,231,245].map(v => v * 1000), backgroundColor: '#4f46e5', borderRadius: 5, barThickness: 14 }] },
+                    data: { labels: ['Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul'], datasets: [{ data: [142,151,168,159,180,172,195,201,214,208,231,245].map(v => v * 1000), backgroundColor: '#0D0D0D', borderRadius: 5, barThickness: 14 }] },
                     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { callback: (v) => '₹' + (Number(v) / 1000) + 'k' }, grid: { color: '#f1f3f7' } }, x: { grid: { display: false } } } },
                   }}
                 />
               </div>
             </div>
             <div className="card">
-              <div className="card-head"><h3>B2B vs B2C</h3></div>
+              <div className="card-head"><h3>Organizations vs Individuals (live order value)</h3></div>
               <div className="card-pad">
                 <ChartCanvas
+                  key={`split-${b2bRevenue}-${b2cRevenue}`}
                   height={90}
                   config={{
                     type: 'doughnut',
-                    data: { labels: ['B2B', 'B2C'], datasets: [{ data: [68, 32], backgroundColor: ['#4f46e5', '#a5b4fc'], borderWidth: 0 }] },
+                    data: { labels: ['Organizations', 'Individuals'], datasets: [{ data: [b2bRevenue || 0, b2cRevenue || 0], backgroundColor: ['#0D0D0D', '#C8A97E'], borderWidth: 0 }] },
                     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, cutout: '68%' },
                   }}
                 />
@@ -54,13 +95,14 @@ export default function Reports() {
             </div>
           </div>
           <div className="card">
-            <div className="card-head"><h3>Top Customers by Revenue</h3></div>
+            <div className="card-head"><h3>Top Customers by Order Value (live)</h3></div>
             <table className="table">
-              <thead><tr><th>Customer</th><th>Type</th><th>Orders</th><th>Revenue</th></tr></thead>
+              <thead><tr><th>Customer</th><th>Type</th><th>Orders</th><th>Order value</th></tr></thead>
               <tbody>
-                <tr><td>Acme Corporation</td><td><span className="tag">B2B</span></td><td>18</td><td>₹5,42,000</td></tr>
-                <tr><td>Nova Retail Pvt Ltd</td><td><span className="tag">B2B</span></td><td>12</td><td>₹3,10,000</td></tr>
-                <tr><td>Priya Sharma</td><td><span className="tag">B2C</span></td><td>4</td><td>₹32,000</td></tr>
+                {topCustomers.length === 0 && <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--muted)', padding: 20 }}>No orders yet.</td></tr>}
+                {topCustomers.map(([cust, e]) => (
+                  <tr key={cust}><td>{cust}</td><td><span className="tag">{e.type === 'B2C' ? 'Individual' : 'Organisation'}</span></td><td>{e.count}</td><td className="tnum">{formatINR(e.revenue)}</td></tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -70,20 +112,21 @@ export default function Reports() {
       {tab === 1 && (
         <div>
           <div className="grid grid-4" style={{ marginBottom: 16 }}>
-            <div className="card kpi"><div className="kpi-label">Total Orders (YTD)</div><div className="kpi-value">1,284</div></div>
-            <div className="card kpi"><div className="kpi-label">Avg Order Value</div><div className="kpi-value">₹12,500</div></div>
-            <div className="card kpi"><div className="kpi-label">Avg Fulfillment Time</div><div className="kpi-value">11.4 days</div></div>
-            <div className="card kpi"><div className="kpi-label">Cancellation Rate</div><div className="kpi-value">2.1%</div></div>
+            <div className="card kpi"><div className="kpi-label">Total Orders (live)</div><div className="kpi-value">{activeOrders.length}</div></div>
+            <div className="card kpi"><div className="kpi-label">Avg Order Value</div><div className="kpi-value">{formatINR(aov)}</div></div>
+            <div className="card kpi"><div className="kpi-label">Payments Collected</div><div className="kpi-value">{formatINR(revenue)}</div></div>
+            <div className="card kpi"><div className="kpi-label">Cancellation Rate</div><div className="kpi-value">{cancelRate}%</div></div>
           </div>
           <div className="card">
-            <div className="card-head"><h3>Orders by Status</h3></div>
+            <div className="card-head"><h3>Orders by Status (live)</h3></div>
             <div className="card-pad">
               <ChartCanvas
+                key={`status-${audience}-${statusData.join('-')}`}
                 height={90}
                 config={{
                   type: 'bar',
-                  data: { labels: ['New','Assigned','In Progress','QC','Invoiced','Paid','Shipped','Delivered','Cancelled'], datasets: [{ data: [9,15,22,15,12,8,10,26,4], backgroundColor: '#2563eb', borderRadius: 5 }] },
-                  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { grid: { color: '#f1f3f7' } } } },
+                  data: { labels: statusLabels, datasets: [{ data: statusData, backgroundColor: '#2563eb', borderRadius: 5 }] },
+                  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { grid: { color: '#f1f3f7' }, ticks: { precision: 0 } } } },
                 }}
               />
             </div>
@@ -132,8 +175,8 @@ export default function Reports() {
                 data: {
                   labels: manufacturersData.map((m) => m.name),
                   datasets: [
-                    { label: 'On-time %', data: manufacturersData.map((m) => m.onTime), backgroundColor: '#4f46e5', borderRadius: 5, barThickness: 14 },
-                    { label: 'QC pass %', data: manufacturersData.map((m) => m.qc), backgroundColor: '#a5b4fc', borderRadius: 5, barThickness: 14 },
+                    { label: 'On-time %', data: manufacturersData.map((m) => m.onTime), backgroundColor: '#0D0D0D', borderRadius: 5, barThickness: 14 },
+                    { label: 'QC pass %', data: manufacturersData.map((m) => m.qc), backgroundColor: '#C8A97E', borderRadius: 5, barThickness: 14 },
                   ],
                 },
                 options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, scales: { x: { min: 0, max: 100, grid: { color: '#f1f3f7' } }, y: { grid: { display: false } } } },

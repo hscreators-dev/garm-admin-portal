@@ -2,6 +2,7 @@
 // no socket.io-client needed). One shared connection; components subscribe to the
 // event names they care about (order:created, product:updated, etc.) with useEffect.
 import { API_BASE } from './config';
+import { adminToken } from './client';
 
 type Handler<T = unknown> = (payload: T) => void;
 
@@ -10,7 +11,12 @@ let source: EventSource | null = null;
 
 function ensureConnected() {
   if (source) return;
-  source = new EventSource(`${API_BASE}/api/events`);
+  const token = adminToken.get();
+  if (!token) return; // not signed in yet — connect() is retried on the next onLiveEvent() call after sign-in
+  // Native EventSource can't send an Authorization header, so the session
+  // token travels as a query param instead — checked server-side before the
+  // stream opens (this endpoint used to be wide open to anyone).
+  source = new EventSource(`${API_BASE}/api/events?token=${encodeURIComponent(token)}`);
   source.onerror = () => {
     // EventSource reconnects automatically; nothing to do here.
   };

@@ -1,43 +1,84 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Icon from '../components/Icon';
 import Badge from '../components/Badge';
 import Modal from '../components/Modal';
-import { useToast } from '../components/Toast';
-import { formatINR, paymentsData } from '../data/mockData';
+import AudienceTabs, { type AudienceFilter } from '../components/AudienceTabs';
+import { useOrders } from '../api/useOrders';
+import { formatINR, type Order } from '../data/mockData';
 
+// Real payments view — driven by the same live orders the Garm App writes to
+// (customer UPI/card payments land here automatically via the shared
+// database), split by Individuals / Organizations like every other menu.
 export default function Payments() {
-  const showToast = useToast();
-  const [recordModal, setRecordModal] = useState(false);
-  const [receiptOrd, setReceiptOrd] = useState<string | null>(null);
-  const receipt = paymentsData.find((p) => p.ord === receiptOrd);
+  const navigate = useNavigate();
+  const { orders, loading } = useOrders();
+  const [audience, setAudience] = useState<AudienceFilter>('B2C');
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
+  const [receiptId, setReceiptId] = useState<number | null>(null);
+
+  const scoped = useMemo(() => orders.filter((o) => (audience === 'ALL' || o.type === audience) && o.status !== 'CANCELLED'), [orders, audience]);
+  const rows = useMemo(() => scoped.filter((o) => {
+    const q = search.toLowerCase();
+    if (q && !(o.no.toLowerCase().includes(q) || o.cust.toLowerCase().includes(q))) return false;
+    if (status && o.pay !== status) return false;
+    return true;
+  }), [scoped, search, status]);
+  const receipt = orders.find((o) => o.id === receiptId) || null;
+
+  const paidAmount = (o: Order) => o.total || o.quoteAmount || 0;
+  const collected = scoped.filter((o) => o.pay === 'COMPLETED').reduce((s, o) => s + paidAmount(o), 0);
+  const partial = scoped.filter((o) => o.pay === 'PARTIAL').reduce((s, o) => s + paidAmount(o), 0);
+  const pending = scoped.filter((o) => o.pay === 'PENDING').reduce((s, o) => s + paidAmount(o), 0);
+  const awaitingConfirm = audience !== 'B2B' ? scoped.filter((o) => o.type === 'B2C' && o.status === 'NEW').length : 0;
+
+  if (loading) return <div className="small-muted" style={{ padding: 24 }}>Loading payments from the backend…</div>;
 
   return (
     <div>
       <div className="page-head">
-        <div><div className="page-title">Payments</div><div className="page-desc">Track receivables and reconcile transactions.</div></div>
-        <div className="page-actions"><button className="btn btn-primary" onClick={() => setRecordModal(true)}><Icon name="plus" /> Record Payment</button></div>
+        <div><div className="page-title">Payments</div><div className="page-desc">Live payment status per order — customer UPI/card payments from the Garm App appear here automatically.</div></div>
+        <div className="page-actions">
+          <button className="btn btn-outline" onClick={() => navigate('/orders')}><Icon name="card" /> Record Offline Payment (via Orders)</button>
+        </div>
       </div>
+
+      <AudienceTabs value={audience} onChange={setAudience} showAll
+        counts={{ b2c: orders.filter((o) => o.type === 'B2C').length, b2b: orders.filter((o) => o.type === 'B2B').length }} />
+
       <div className="grid grid-4" style={{ marginBottom: 16 }}>
-        <div className="card kpi"><div className="kpi-label">Total Collected (mo)</div><div className="kpi-value" style={{ color: 'var(--success)' }}>₹1,86,400</div></div>
-        <div className="card kpi"><div className="kpi-label">Pending</div><div className="kpi-value" style={{ color: 'var(--warning)' }}>₹42,300</div></div>
-        <div className="card kpi"><div className="kpi-label">Overdue</div><div className="kpi-value" style={{ color: 'var(--danger)' }}>₹11,000</div></div>
-        <div className="card kpi"><div className="kpi-label">Refunded</div><div className="kpi-value" style={{ color: 'var(--muted)' }}>₹3,500</div></div>
+        <div className="card kpi"><div className="kpi-label">Collected</div><div className="kpi-value" style={{ color: 'var(--success)' }}>{formatINR(collected)}</div></div>
+        <div className="card kpi"><div className="kpi-label">Partial</div><div className="kpi-value" style={{ color: 'var(--warning)' }}>{formatINR(partial)}</div></div>
+        <div className="card kpi"><div className="kpi-label">Awaiting payment</div><div className="kpi-value" style={{ color: 'var(--danger)' }}>{formatINR(pending)}</div></div>
+        <div className="card kpi"><div className="kpi-label">Awaiting confirmation</div><div className="kpi-value">{awaitingConfirm}</div></div>
       </div>
+
       <div className="filter-bar">
-        <div className="search-inline"><Icon name="search" /><input placeholder="Search order #, invoice #, customer…" /></div>
-        <select className="field-sm"><option>All statuses</option><option>PENDING</option><option>COMPLETED</option><option>FAILED</option><option>REFUNDED</option></select>
-        <select className="field-sm"><option>All methods</option><option>Bank Transfer</option><option>Card</option><option>UPI</option><option>Cheque</option></select>
+        <div className="search-inline"><Icon name="search" /><input placeholder="Search order #, customer…" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
+        <select className="field-sm" value={status} onChange={(e) => setStatus(e.target.value)}>
+          <option value="">All payment statuses</option><option>PENDING</option><option>PARTIAL</option><option>COMPLETED</option>
+        </select>
       </div>
+
       <div className="card">
         <table className="table">
-          <thead><tr><th>Order #</th><th>Invoice #</th><th>Customer</th><th>Amount</th><th>Method</th><th>Status</th><th>Paid on</th><th style={{ textAlign: 'right' }}>Actions</th></tr></thead>
+          <thead><tr><th>Order #</th><th>Customer</th><th>Amount</th><th>Method</th><th>Payment</th><th>Paid on</th><th>Reference</th><th style={{ textAlign: 'right' }}>Actions</th></tr></thead>
           <tbody>
-            {paymentsData.map((p) => (
-              <tr key={p.ord}>
-                <td className="tnum">{p.ord}</td><td>{p.inv}</td><td>{p.cust}</td><td className="tnum">{formatINR(p.amount)}</td>
-                <td>{p.method.replace('_', ' ')}</td><td><Badge status={p.status} /></td><td>{p.date}</td>
+            {rows.length === 0 && (
+              <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--muted)', padding: 26 }}>No payments match these filters.</td></tr>
+            )}
+            {rows.map((o) => (
+              <tr key={o.id}>
+                <td className="tnum">{o.no}</td>
+                <td><div className="cust-name">{o.cust}</div><div className="cust-sub">{o.type === 'B2C' ? 'Individual' : (o.orgName || 'Organisation')}</div></td>
+                <td className="tnum">{formatINR(paidAmount(o))}</td>
+                <td>{o.paymentMode || '—'}</td>
+                <td><Badge status={o.pay} /></td>
+                <td>{o.paymentDate || '—'}</td>
+                <td className="tnum">{o.paymentReference || '—'}</td>
                 <td className="row-actions">
-                  <button className="icon-btn btn-sm" style={{ width: 30, height: 30 }} onClick={() => setReceiptOrd(p.ord)}><Icon name="eye" /></button>
+                  <button className="icon-btn btn-sm" title="View receipt" style={{ width: 36, height: 36 }} onClick={() => setReceiptId(o.id)}><Icon name="eye" /></button>
                 </td>
               </tr>
             ))}
@@ -45,27 +86,16 @@ export default function Payments() {
         </table>
       </div>
 
-      <Modal open={recordModal} title="Record Payment" confirmLabel="Save Payment" onClose={() => setRecordModal(false)} onConfirm={() => showToast('Payment recorded and invoice updated')}>
-        <div className="form-grid">
-          <div className="form-field full"><label>Order / Invoice</label><select><option>ORD-20260701-004 / INV-20260701-004</option><option>ORD-20260622-007 / INV-20260622-007</option></select></div>
-          <div className="form-field"><label>Amount (₹)</label><input type="number" placeholder="53100" /></div>
-          <div className="form-field"><label>Payment method</label><select><option>Bank Transfer</option><option>Card</option><option>UPI</option><option>Cheque</option><option>Cash</option></select></div>
-          <div className="form-field"><label>Payment date</label><input type="date" /></div>
-          <div className="form-field"><label>Reference number</label><input placeholder="Optional" /></div>
-          <div className="form-field full"><label>Notes</label><textarea className="ta" placeholder="Internal notes about this payment…"></textarea></div>
-        </div>
-      </Modal>
-
-      <Modal open={!!receipt} title="Payment Receipt" confirmLabel="Print Receipt" onClose={() => setReceiptOrd(null)} onConfirm={() => window.print()}>
+      <Modal open={!!receipt} title="Payment Receipt" confirmLabel="Print Receipt" onClose={() => setReceiptId(null)} onConfirm={() => window.print()}>
         {receipt && (
           <div style={{ fontSize: 13, lineHeight: 1.9 }}>
-            <div className="info-row"><span className="k">Order</span><span className="v">{receipt.ord}</span></div>
-            <div className="info-row"><span className="k">Invoice</span><span className="v">{receipt.inv}</span></div>
+            <div className="info-row"><span className="k">Order</span><span className="v">{receipt.no}</span></div>
             <div className="info-row"><span className="k">Customer</span><span className="v">{receipt.cust}</span></div>
-            <div className="info-row"><span className="k">Amount</span><span className="v">{formatINR(receipt.amount)}</span></div>
-            <div className="info-row"><span className="k">Method</span><span className="v">{receipt.method.replace('_', ' ')}</span></div>
-            <div className="info-row"><span className="k">Status</span><span className="v"><Badge status={receipt.status} /></span></div>
-            <div className="info-row"><span className="k">Date</span><span className="v">{receipt.date}</span></div>
+            <div className="info-row"><span className="k">Amount</span><span className="v">{formatINR(paidAmount(receipt))}</span></div>
+            <div className="info-row"><span className="k">Method</span><span className="v">{receipt.paymentMode || '—'}</span></div>
+            <div className="info-row"><span className="k">Status</span><span className="v"><Badge status={receipt.pay} /></span></div>
+            <div className="info-row"><span className="k">Paid on</span><span className="v">{receipt.paymentDate || '—'}</span></div>
+            <div className="info-row"><span className="k">Reference</span><span className="v">{receipt.paymentReference || '—'}</span></div>
           </div>
         )}
       </Modal>

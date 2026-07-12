@@ -1,32 +1,47 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Icon from '../components/Icon';
 import ChartCanvas from '../components/ChartCanvas';
 import { useToast } from '../components/Toast';
-import { QC_TEMPLATES, ordersData, type Order } from '../data/mockData';
+import { useOrders } from '../api/useOrders';
+import { api } from '../api/client';
+import { QC_TEMPLATES, type Order } from '../data/mockData';
 
+// Individuals (B2C) skip in-house QC entirely in the Garm App — only
+// Organization (B2B) manufacturing runs are inspected before invoicing. This
+// module only ever operates on B2B orders; see server/index.js's
+// buildTrackSteps()/the QC_READY|QC_APPROVED status guard for the backend side.
 export default function QC() {
+  const { orders, loading, refresh } = useOrders();
   const [inspecting, setInspecting] = useState<Order | null>(null);
+
+  if (loading) return <div className="small-muted" style={{ padding: 24 }}>Loading QC queue from the backend…</div>;
+
   return inspecting ? (
-    <QcForm order={inspecting} onBack={() => setInspecting(null)} />
+    <QcForm order={inspecting} onBack={() => { setInspecting(null); refresh(); }} />
   ) : (
-    <QcQueue onStart={setInspecting} />
+    <QcQueue orders={orders} onStart={setInspecting} />
   );
 }
 
-function QcQueue({ onStart }: { onStart: (o: Order) => void }) {
-  const pending = ordersData.filter((o) => o.status === 'QC_READY');
+function QcQueue({ orders, onStart }: { orders: Order[]; onStart: (o: Order) => void }) {
+  const orgOrders = useMemo(() => orders.filter((o) => o.type === 'B2B'), [orders]);
+  const pending = orgOrders.filter((o) => o.status === 'QC_READY');
+  const inspected = orgOrders.filter((o) => o.qc === 'PASSED' || o.qc === 'FAILED' || o.qc === 'REWORK');
+  const passRate = inspected.length ? Math.round((inspected.filter((o) => o.qc === 'PASSED').length / inspected.length) * 100) : 0;
+  const failRate = inspected.length ? Math.round((inspected.filter((o) => o.qc === 'FAILED').length / inspected.length) * 100) : 0;
+  const reworkRate = inspected.length ? Math.round((inspected.filter((o) => o.qc === 'REWORK').length / inspected.length) * 100) : 0;
 
   return (
     <div>
       <div className="page-head">
-        <div><div className="page-title">Quality Control</div><div className="page-desc">Inspection queue and QC performance.</div></div>
+        <div><div className="page-title">Quality Control</div><div className="page-desc">Inspection queue and QC performance — Organization orders only. Individuals skip QC in the Garm App.</div></div>
       </div>
 
       <div className="grid grid-4" style={{ marginBottom: 16 }}>
-        <div className="card kpi"><div className="kpi-label">Total Inspected (mo)</div><div className="kpi-value">186</div></div>
-        <div className="card kpi"><div className="kpi-label">Pass Rate</div><div className="kpi-value" style={{ color: 'var(--success)' }}>92%</div></div>
-        <div className="card kpi"><div className="kpi-label">Fail Rate</div><div className="kpi-value" style={{ color: 'var(--danger)' }}>5%</div></div>
-        <div className="card kpi"><div className="kpi-label">Rework Rate</div><div className="kpi-value" style={{ color: 'var(--warning)' }}>3%</div></div>
+        <div className="card kpi"><div className="kpi-label">Total Inspected</div><div className="kpi-value">{inspected.length}</div></div>
+        <div className="card kpi"><div className="kpi-label">Pass Rate</div><div className="kpi-value" style={{ color: 'var(--success)' }}>{passRate}%</div></div>
+        <div className="card kpi"><div className="kpi-label">Fail Rate</div><div className="kpi-value" style={{ color: 'var(--danger)' }}>{failRate}%</div></div>
+        <div className="card kpi"><div className="kpi-label">Rework Rate</div><div className="kpi-value" style={{ color: 'var(--warning)' }}>{reworkRate}%</div></div>
       </div>
 
       <div className="two-col" style={{ marginBottom: 16 }}>
@@ -70,7 +85,7 @@ function QcQueue({ onStart }: { onStart: (o: Order) => void }) {
             {pending.length === 0 && <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--muted)', padding: 20 }}>Queue is clear — nothing pending inspection.</td></tr>}
             {pending.map((o) => (
               <tr key={o.id}>
-                <td className="tnum">{o.no}</td><td>{o.mfr}</td><td>{o.lines[0].p}</td><td>{o.qty}</td><td>2 days ago</td><td>Unassigned</td>
+                <td className="tnum">{o.no}</td><td>{o.mfr}</td><td>{o.lines[0]?.p ?? '—'}</td><td>{o.qty}</td><td>{o.date}</td><td>Unassigned</td>
                 <td style={{ textAlign: 'right' }}>
                   <button className="btn btn-primary btn-sm" onClick={() => onStart(o)}><Icon name="shieldSm" /> Start Inspection</button>
                 </td>
@@ -90,12 +105,28 @@ function QcForm({ order, onBack }: { order: Order; onBack: () => void }) {
     Object.fromEntries(template.map((_, i) => [i, 'pass' as const]))
   );
   const [overall, setOverall] = useState<'pass' | 'fail' | 'rework' | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  function submit() {
+  async function submit() {
     if (!overall) { showToast('Select an overall result before submitting'); return; }
-    const msg = overall === 'pass' ? 'QC passed — invoice auto-generated' : overall === 'fail' ? 'QC failed — sent back to manufacturer' : 'Rework requested — manufacturer notified';
-    showToast(msg);
-    onBack();
+    setSubmitting(true);
+    try {
+      if (overall === 'pass') {
+        await api.updateOrderStatus(order.id, { status: 'QC_APPROVED', qc: 'PASSED' });
+        showToast('QC passed — order marked QC Approved, ready to invoice.');
+      } else if (overall === 'fail') {
+        await api.updateOrderStatus(order.id, { status: 'IN_PROGRESS', qc: 'FAILED' });
+        showToast('QC failed — sent back to manufacturer for rework.');
+      } else {
+        await api.updateOrderStatus(order.id, { status: 'IN_PROGRESS', qc: 'REWORK' });
+        showToast('Rework requested — manufacturer notified.');
+      }
+      onBack();
+    } catch (err) {
+      showToast(`Couldn't save inspection: ${(err as Error).message}`);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -141,7 +172,7 @@ function QcForm({ order, onBack }: { order: Order; onBack: () => void }) {
             <h3 style={{ margin: '0 0 8px', fontSize: '13.5px' }}>Photos</h3>
             <div className="dropzone"><Icon name="upload" /><div>Drag photos here or click to upload</div></div>
           </div>
-          <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={submit}><Icon name="check" /> Submit Inspection</button>
+          <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={submitting} onClick={submit}><Icon name="check" /> {submitting ? 'Saving…' : 'Submit Inspection'}</button>
         </div>
       </div>
     </div>

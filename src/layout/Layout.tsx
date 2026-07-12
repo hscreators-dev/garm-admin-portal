@@ -1,17 +1,25 @@
 import { useEffect } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Icon from '../components/Icon';
+import Logo from '../components/Logo';
 import { useToast } from '../components/Toast';
 import { useRole } from '../components/RoleContext';
-import { TITLES, type Role } from '../data/mockData';
+import { TITLES } from '../data/mockData';
+import NotificationBell from './NotificationBell';
+
+function initialsOf(name: string) {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join('') || '?';
+}
 
 const WORKSPACE_NAV = [
   { view: 'dashboard', icon: 'grid', label: 'Dashboard' },
+  { view: 'catalog', icon: 'tag', label: 'Catalog' },
   { view: 'orders', icon: 'package', label: 'Orders' },
   { view: 'manufacturers', icon: 'factory', label: 'Manufacturers' },
   { view: 'qc', icon: 'shield', label: 'Quality Control' },
   { view: 'documents', icon: 'file', label: 'Documents' },
   { view: 'payments', icon: 'card', label: 'Payments' },
+  { view: 'support', icon: 'help', label: 'Support' },
 ];
 
 const INSIGHTS_NAV = [
@@ -20,7 +28,7 @@ const INSIGHTS_NAV = [
 ];
 
 export default function Layout() {
-  const { role, setRole, allowedViews } = useRole();
+  const { currentUser, role, allowedViews, signOut } = useRole();
   const showToast = useToast();
   const location = useLocation();
   const navigate = useNavigate();
@@ -28,16 +36,15 @@ export default function Layout() {
   const currentView = location.pathname.split('/').filter(Boolean).pop() || 'dashboard';
 
   useEffect(() => {
-    if (!allowedViews.includes(currentView)) {
+    if (allowedViews.length && !allowedViews.includes(currentView)) {
       navigate(`/${allowedViews[0]}`);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role]);
 
-  function handleRoleChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const next = e.target.value as Role;
-    setRole(next);
-    showToast('Now viewing the portal as ' + next);
+  function handleSignOut() {
+    signOut();
+    showToast('Signed out.');
   }
 
   function renderNavItem(item: { view: string; icon: string; label: string }) {
@@ -56,7 +63,7 @@ export default function Layout() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-mark">G</div>
+          <div className="brand-mark"><Logo size={34} /></div>
           <div>
             <div className="brand-name">Garm Admin</div>
             <div className="brand-sub">Operations Portal</div>
@@ -70,24 +77,14 @@ export default function Layout() {
         <ul className="nav">{INSIGHTS_NAV.map(renderNavItem)}</ul>
 
         <div className="sidebar-footer">
-          <div className="role-switch">
-            <label>Viewing as role</label>
-            <select value={role} onChange={handleRoleChange}>
-              <option>Super Admin</option>
-              <option>Operations Manager</option>
-              <option>QC Supervisor</option>
-              <option>Finance Manager</option>
-              <option>Warehouse Manager</option>
-              <option>View-Only</option>
-            </select>
-          </div>
-          <div className="user-chip">
-            <div className="avatar">HM</div>
-            <div>
-              <div className="name">Haneef M.</div>
-              <div className="role">{role}</div>
+          <div className="signed-in-chip">
+            <div className="avatar">{initialsOf(currentUser?.name || '?')}</div>
+            <div className="meta">
+              <div className="name">{currentUser?.name}</div>
+              <div className="role">{role}{role === 'Super Admin' ? ' · full access' : ''}</div>
             </div>
           </div>
+          <button className="signout-btn" onClick={handleSignOut}><Icon name="logout" /> Sign out</button>
         </div>
       </aside>
 
@@ -101,8 +98,8 @@ export default function Layout() {
             <input placeholder="Search orders, customers, manufacturers…" />
           </div>
           <div className="topbar-right">
-            <button className="icon-btn"><span className="dot-badge"></span><Icon name="bell" /></button>
-            <button className="icon-btn" onClick={() => showToast('Nothing new to sync — everything up to date.')}>
+            <NotificationBell />
+            <button className="icon-btn" title="Refresh data" onClick={() => { showToast('Refreshing…'); setTimeout(() => window.location.reload(), 150); }}>
               <Icon name="refresh" />
             </button>
           </div>

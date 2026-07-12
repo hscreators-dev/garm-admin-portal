@@ -1,0 +1,58 @@
+# Render Blueprint — Garm Admin Portal (backend + frontend)
+# ─────────────────────────────────────────────────────────────────────────────
+# In Render: New ▸ Blueprint ▸ connect the "garm-admin-portal" repo ▸ Apply.
+# Render reads this file and creates BOTH services below with the right settings.
+# You'll be asked to fill a few values (marked "sync: false") when you Apply:
+#   • MONGODB_URI   — your MongoDB Atlas connection string (…/garm?…)
+#   • SMTP_*        — a Gmail address + App Password so login codes get emailed
+#   • ALLOWED_ORIGINS — after the customer app + this admin app have URLs, set to
+#                        "https://<customer-app>,https://<this-admin-app>"
+#   • VITE_API_URL (on the static site) — this admin backend's URL once it's live
+# Secrets JWT/GARM are generated for you automatically.
+services:
+  # ── Admin backend (Node, Docker) ──
+  - type: web
+    name: garm-admin-backend
+    runtime: docker
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: ./server
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: GARM_SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: OTP_APP_NAME
+        value: Garm
+      - key: SMS_PROVIDER
+        value: console
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+
+  # ── Admin frontend (static site) ──
+  - type: web
+    name: garm-admin
+    runtime: static
+    buildCommand: npm install && npx vite build --base=/
+    staticPublishPath: ./dist
+    envVars:
+      # Set this to the admin backend URL above once it's live, e.g.
+      #   https://garm-admin-backend.onrender.com
+      - key: VITE_API_URL
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

@@ -1,28 +1,69 @@
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../components/Icon';
 import ChartCanvas from '../components/ChartCanvas';
+import AudienceTabs, { type AudienceFilter } from '../components/AudienceTabs';
 import { useToast } from '../components/Toast';
-import { activityFeedData, alertsData, formatINR, manufacturersData } from '../data/mockData';
-
-const KPIS = [
-  { icon: 'rupee', tone: 'info', delta: '12%', up: true, label: 'Total Revenue (Month)', value: '₹2,45,000' },
-  { icon: 'clock', tone: 'warning', delta: '3%', up: false, label: 'Orders Pending QC', value: '15' },
-  { icon: 'shieldSm', tone: 'success', delta: '2%', up: true, label: 'QC Pass Rate', value: '92%' },
-  { icon: 'bar', tone: 'purple', delta: '6%', up: true, label: 'Average Order Value', value: '₹12,500' },
-  { icon: 'file', tone: 'info', delta: '9%', up: true, label: 'Invoices Sent (Month)', value: '48' },
-  { icon: 'card', tone: 'danger', delta: '4%', up: false, label: 'Outstanding Payments', value: '₹89,000' },
-];
+import { useManufacturers } from '../api/useManufacturers';
+import { useOrders } from '../api/useOrders';
+import { onLiveEvent } from '../api/liveBus';
+import { useRole } from '../components/RoleContext';
+import { activityFeedData, alertsData, formatINR, type Order } from '../data/mockData';
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const showToast = useToast();
-  const topMfrs = [...manufacturersData].sort((a, b) => b.onTime - a.onTime).slice(0, 5);
+  const { currentUser } = useRole();
+  const { manufacturers } = useManufacturers();
+  const { orders } = useOrders();
+  const [audience, setAudience] = useState<AudienceFilter>('ALL');
+  const topMfrs = [...manufacturers].sort((a, b) => b.onTime - a.onTime).slice(0, 5);
+  const [liveOrders, setLiveOrders] = useState<Order[]>([]);
+
+  useEffect(() => onLiveEvent<Order>('order:created', (order) => {
+    setLiveOrders((prev) => [order, ...prev].slice(0, 5));
+    showToast(`New order ${order.no} from ${order.cust} — ${formatINR(order.total)}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), []);
+
+  // Real KPIs from the live order book, scoped by customer type.
+  const scoped = useMemo(() => orders.filter((o) => audience === 'ALL' || o.type === audience), [orders, audience]);
+  const amount = (o: Order) => o.total || o.quoteAmount || 0;
+  const active = scoped.filter((o) => o.status !== 'CANCELLED');
+  const kpis = useMemo(() => {
+    const collected = active.filter((o) => o.pay === 'COMPLETED').reduce((s, o) => s + amount(o), 0);
+    const outstanding = active.filter((o) => o.pay !== 'COMPLETED').reduce((s, o) => s + amount(o), 0);
+    const awaitingConfirm = active.filter((o) => o.type === 'B2C' && o.status === 'NEW').length;
+    const inProduction = active.filter((o) => ['ASSIGNED', 'IN_PROGRESS'].includes(o.status)).length;
+    const delivered = scoped.filter((o) => o.status === 'DELIVERED').length;
+    return [
+      { icon: 'card', tone: 'success', label: 'Payments Collected', value: formatINR(collected) },
+      { icon: 'card', tone: 'danger', label: 'Outstanding', value: formatINR(outstanding) },
+      { icon: 'clock', tone: 'warning', label: 'Awaiting Confirmation', value: String(awaitingConfirm) },
+      { icon: 'factory', tone: 'purple', label: 'In Production', value: String(inProduction) },
+      { icon: 'package', tone: 'info', label: 'Total Orders', value: String(active.length) },
+      { icon: 'check', tone: 'success', label: 'Delivered', value: String(delivered) },
+    ];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scoped]);
+  const pipelineLabels = ['New', 'Confirmed', 'Paid', 'Assigned', 'In Progress', 'QC', 'Invoiced', 'Shipped', 'Delivered'];
+  const pipelineData = [
+    active.filter((o) => o.status === 'NEW').length,
+    active.filter((o) => o.status === 'CONFIRMED').length,
+    active.filter((o) => o.status === 'PAID').length,
+    active.filter((o) => o.status === 'ASSIGNED').length,
+    active.filter((o) => o.status === 'IN_PROGRESS').length,
+    active.filter((o) => ['QC_READY', 'QC_APPROVED'].includes(o.status)).length,
+    active.filter((o) => o.status === 'INVOICED').length,
+    active.filter((o) => o.status === 'SHIPPED').length,
+    active.filter((o) => o.status === 'DELIVERED').length,
+  ];
 
   return (
     <section>
       <div className="page-head">
         <div>
-          <div className="page-title">Good afternoon, Haneef 👋</div>
+          <div className="page-title">Good afternoon, {currentUser?.name.split(' ')[0]} 👋</div>
           <div className="page-desc">Here's what's happening across Garm operations today, 9 Jul 2026.</div>
         </div>
         <div className="page-actions">
@@ -37,16 +78,27 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {liveOrders.length > 0 && (
+        <div className="live-order-banner">
+          <span className="dot-live"></span>
+          <div style={{ flex: 1, fontSize: 12.8 }}>
+            <b>{liveOrders.length} new order{liveOrders.length > 1 ? 's' : ''}</b> just came in from the Garm App —{' '}
+            {liveOrders.map((o) => o.no).join(', ')}
+          </div>
+          <button className="btn btn-outline btn-sm" onClick={() => navigate('/orders')}>View Orders</button>
+        </div>
+      )}
+
+      <AudienceTabs value={audience} onChange={setAudience} showAll
+        counts={{ b2c: orders.filter((o) => o.type === 'B2C').length, b2b: orders.filter((o) => o.type === 'B2B').length }} />
+
       <div className="grid grid-6" style={{ marginBottom: 16 }}>
-        {KPIS.map((k) => (
+        {kpis.map((k) => (
           <div className="card kpi" key={k.label}>
             <div className="kpi-top">
               <div className="kpi-icon" style={{ background: `var(--${k.tone}-bg)`, color: `var(--${k.tone})` }}>
                 <Icon name={k.icon} />
               </div>
-              <span className={`kpi-delta ${k.up ? 'up' : 'down'}`}>
-                <Icon name={k.up ? 'arrowUp' : 'arrowDown'} /> {k.delta}
-              </span>
             </div>
             <div className="kpi-label">{k.label}</div>
             <div className="kpi-value">{k.value}</div>
@@ -67,7 +119,7 @@ export default function Dashboard() {
                 type: 'line',
                 data: {
                   labels: ['Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul'],
-                  datasets: [{ label: 'Revenue', data: [142,151,168,159,180,172,195,201,214,208,231,245].map(v => v * 1000), borderColor: '#4f46e5', backgroundColor: 'rgba(79,70,229,.08)', fill: true, tension: 0.35, pointRadius: 0, borderWidth: 2.5 }],
+                  datasets: [{ label: 'Revenue', data: [142,151,168,159,180,172,195,201,214,208,231,245].map(v => v * 1000), borderColor: '#0D0D0D', backgroundColor: 'rgba(200,169,126,.16)', fill: true, tension: 0.35, pointRadius: 0, borderWidth: 2.5 }],
                 },
                 options: {
                   responsive: true, maintainAspectRatio: false,
@@ -79,17 +131,18 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="card">
-          <div className="card-head"><div><h3>Order Pipeline</h3><div className="sub">Orders currently at each stage</div></div></div>
+          <div className="card-head"><div><h3>Order Pipeline</h3><div className="sub">Live — orders currently at each stage{audience !== 'ALL' ? ` (${audience === 'B2C' ? 'Individuals' : 'Organizations'})` : ''}</div></div></div>
           <div className="card-pad">
             <ChartCanvas
+              key={`pipeline-${audience}-${pipelineData.join('-')}`}
               height={130}
               config={{
                 type: 'bar',
                 data: {
-                  labels: ['New','Assigned','In Progress','QC','Invoiced','Paid'],
-                  datasets: [{ data: [9,15,22,15,12,8], backgroundColor: ['#2563eb','#7c3aed','#d97706','#d97706','#2563eb','#059669'], borderRadius: 6, barThickness: 16 }],
+                  labels: pipelineLabels,
+                  datasets: [{ data: pipelineData, backgroundColor: ['#2563eb','#059669','#059669','#7c3aed','#d97706','#d97706','#2563eb','#7c3aed','#059669'], borderRadius: 6, barThickness: 12 }],
                 },
-                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: '#f1f3f7' } }, y: { grid: { display: false } } } },
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: '#f1f3f7' }, ticks: { precision: 0 } }, y: { grid: { display: false } } } },
               }}
             />
           </div>
@@ -122,7 +175,7 @@ export default function Dashboard() {
           <div className="card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {alertsData.map((a, i) => (
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }} key={i}>
-                <div className="kpi-icon" style={{ width: 30, height: 30, background: `var(--${a.tone}-bg, var(--slate-bg))`, color: `var(--${a.tone}, var(--slate))`, flex: 'none' }}>
+                <div className="kpi-icon" style={{ width: 36, height: 36, background: `var(--${a.tone}-bg, var(--slate-bg))`, color: `var(--${a.tone}, var(--slate))`, flex: 'none' }}>
                   <Icon name={a.icon} />
                 </div>
                 <div style={{ fontSize: '12.6px', lineHeight: 1.5 }}>{a.text}</div>

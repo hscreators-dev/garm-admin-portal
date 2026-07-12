@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import Icon from './Icon';
 
 interface ModalProps {
@@ -6,14 +6,30 @@ interface ModalProps {
   title: string;
   children: ReactNode;
   confirmLabel?: string;
-  onConfirm: () => void;
+  // Return false (or a Promise resolving to false) to KEEP the modal open —
+  // used by forms to stay open on validation/network errors instead of
+  // silently closing and losing the user's input.
+  onConfirm: () => void | boolean | Promise<void | boolean>;
   onClose: () => void;
 }
 
 export default function Modal({ open, title, children, confirmLabel, onConfirm, onClose }: ModalProps) {
+  const [busy, setBusy] = useState(false);
   if (!open) return null;
+
+  async function confirm() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const result = await onConfirm();
+      if (result !== false) onClose();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
-    <div className="modal-overlay show" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="modal-overlay show" onClick={(e) => { if (e.target === e.currentTarget && !busy) onClose(); }}>
       <div className="modal">
         <div className="modal-head">
           <h3>{title}</h3>
@@ -21,8 +37,8 @@ export default function Modal({ open, title, children, confirmLabel, onConfirm, 
         </div>
         <div className="modal-body">{children}</div>
         <div className="modal-foot">
-          <button className="btn btn-outline" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" onClick={() => { onConfirm(); onClose(); }}>{confirmLabel || 'Save'}</button>
+          <button className="btn btn-outline" onClick={onClose} disabled={busy}>Cancel</button>
+          <button className="btn btn-primary" onClick={confirm} disabled={busy}>{busy ? 'Saving…' : (confirmLabel || 'Save')}</button>
         </div>
       </div>
     </div>

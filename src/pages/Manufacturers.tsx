@@ -4,14 +4,18 @@ import Badge from '../components/Badge';
 import Modal from '../components/Modal';
 import ChartCanvas from '../components/ChartCanvas';
 import { useToast } from '../components/Toast';
-import { genTrend, manufacturersData, ordersData, type Manufacturer } from '../data/mockData';
+import { useManufacturers } from '../api/useManufacturers';
+import { useOrders } from '../api/useOrders';
+import { genTrend, type Manufacturer } from '../data/mockData';
 
 export default function Manufacturers() {
+  const { manufacturers, loading } = useManufacturers();
   const [selected, setSelected] = useState<Manufacturer | null>(null);
-  return selected ? <MfrDetail mfr={selected} onBack={() => setSelected(null)} /> : <MfrList onOpen={setSelected} />;
+  if (loading) return <div className="small-muted" style={{ padding: 24 }}>Loading manufacturers from the backend…</div>;
+  return selected ? <MfrDetail mfr={selected} onBack={() => setSelected(null)} /> : <MfrList manufacturers={manufacturers} onOpen={setSelected} />;
 }
 
-function MfrList({ onOpen }: { onOpen: (m: Manufacturer) => void }) {
+function MfrList({ manufacturers, onOpen }: { manufacturers: Manufacturer[]; onOpen: (m: Manufacturer) => void }) {
   const showToast = useToast();
   const [modal, setModal] = useState(false);
 
@@ -31,7 +35,7 @@ function MfrList({ onOpen }: { onOpen: (m: Manufacturer) => void }) {
         <table className="table">
           <thead><tr><th>Name</th><th>City</th><th>Categories</th><th>Capacity/mo</th><th>Lead time</th><th>On-time</th><th>QC pass</th><th>Status</th><th style={{ textAlign: 'right' }}>Actions</th></tr></thead>
           <tbody>
-            {manufacturersData.map((m) => (
+            {manufacturers.map((m) => (
               <tr className="clickable" key={m.id} onClick={() => onOpen(m)}>
                 <td className="cust-name">{m.name}</td>
                 <td>{m.city}</td>
@@ -42,7 +46,7 @@ function MfrList({ onOpen }: { onOpen: (m: Manufacturer) => void }) {
                 <td>{m.qc}%</td>
                 <td><Badge status={m.status} /></td>
                 <td className="row-actions" onClick={(e) => e.stopPropagation()}>
-                  <button className="icon-btn btn-sm" style={{ width: 30, height: 30 }} onClick={() => onOpen(m)}><Icon name="eye" /></button>
+                  <button className="icon-btn btn-sm" style={{ width: 36, height: 36 }} onClick={() => onOpen(m)}><Icon name="eye" /></button>
                 </td>
               </tr>
             ))}
@@ -64,12 +68,29 @@ function MfrList({ onOpen }: { onOpen: (m: Manufacturer) => void }) {
           <div className="form-field"><label>Minimum order qty</label><input type="number" placeholder="50" /></div>
         </div>
       </Modal>
+
     </div>
   );
 }
 
 function MfrDetail({ mfr, onBack }: { mfr: Manufacturer; onBack: () => void }) {
-  const recent = ordersData.filter((o) => o.mfr === mfr.name).slice(0, 6);
+  const showToast = useToast();
+  const { orders } = useOrders();
+  const mfrOrders = orders.filter((o) => o.mfr === mfr.name);
+  const recent = mfrOrders.slice(0, 6);
+  const [editModal, setEditModal] = useState(false);
+  const [showAllOrders, setShowAllOrders] = useState(false);
+  const [form, setForm] = useState({ name: mfr.name, city: mfr.city, cap: mfr.cap, lead: mfr.lead, status: mfr.status });
+
+  async function saveEdit() {
+    try {
+      const { api } = await import('../api/client');
+      await api.updateManufacturer(mfr.id, { name: form.name, city: form.city, cap: Number(form.cap) || 0, lead: Number(form.lead) || 0, status: form.status });
+      showToast(`${form.name} updated`);
+    } catch (err) {
+      showToast(`Could not save: ${(err as Error).message}`);
+    }
+  }
 
   return (
     <div>
@@ -79,8 +100,8 @@ function MfrDetail({ mfr, onBack }: { mfr: Manufacturer; onBack: () => void }) {
         <span className="badge tone-success"><span className="dot"></span>Verified</span>
         <Badge status={mfr.status} />
         <div style={{ flex: 1 }}></div>
-        <button className="btn btn-outline btn-sm"><Icon name="edit" /> Edit</button>
-        <button className="btn btn-outline btn-sm"><Icon name="package" /> View Orders</button>
+        <button className="btn btn-outline btn-sm" onClick={() => setEditModal(true)}><Icon name="edit" /> Edit</button>
+        <button className="btn btn-outline btn-sm" onClick={() => setShowAllOrders(true)}><Icon name="package" /> View Orders ({mfrOrders.length})</button>
       </div>
       <div className="two-col">
         <div>
@@ -98,7 +119,7 @@ function MfrDetail({ mfr, onBack }: { mfr: Manufacturer; onBack: () => void }) {
                 type: 'line',
                 data: {
                   labels: Array.from({ length: 12 }, (_, i) => `Wk${i + 1}`),
-                  datasets: [{ label: 'On-time %', data: genTrend(mfr.onTime, 12), borderColor: '#4f46e5', backgroundColor: 'rgba(79,70,229,.08)', tension: 0.35, fill: true, pointRadius: 0, borderWidth: 2 }],
+                  datasets: [{ label: 'On-time %', data: genTrend(mfr.onTime, 12), borderColor: '#0D0D0D', backgroundColor: 'rgba(200,169,126,.16)', tension: 0.35, fill: true, pointRadius: 0, borderWidth: 2 }],
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { min: 60, max: 100, ticks: { callback: (v) => v + '%' } }, x: { grid: { display: false } } } },
               }}
@@ -142,6 +163,32 @@ function MfrDetail({ mfr, onBack }: { mfr: Manufacturer; onBack: () => void }) {
           </div>
         </div>
       </div>
+
+      <Modal open={editModal} title={`Edit ${mfr.name}`} confirmLabel="Save Changes" onClose={() => setEditModal(false)} onConfirm={saveEdit}>
+        <div className="form-grid">
+          <div className="form-field"><label>Manufacturer name</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+          <div className="form-field"><label>City</label><input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></div>
+          <div className="form-field"><label>Capacity (units/mo)</label><input type="number" value={form.cap} onChange={(e) => setForm({ ...form, cap: Number(e.target.value) })} /></div>
+          <div className="form-field"><label>Lead time (days)</label><input type="number" value={form.lead} onChange={(e) => setForm({ ...form, lead: Number(e.target.value) })} /></div>
+          <div className="form-field full"><label>Status</label>
+            <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as Manufacturer['status'] })}>
+              <option value="ACTIVE">ACTIVE</option><option value="ON_HOLD">ON_HOLD</option><option value="INACTIVE">INACTIVE</option>
+            </select>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={showAllOrders} title={`Orders with ${mfr.name} (${mfrOrders.length})`} confirmLabel="Close" onClose={() => setShowAllOrders(false)} onConfirm={() => setShowAllOrders(false)}>
+        <table className="table">
+          <thead><tr><th>Order #</th><th>Customer</th><th>Qty</th><th>Status</th><th>Payment</th><th>Date</th></tr></thead>
+          <tbody>
+            {mfrOrders.length === 0 && <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--muted)', padding: 16 }}>No orders assigned to this manufacturer yet.</td></tr>}
+            {mfrOrders.map((o) => (
+              <tr key={o.id}><td className="tnum">{o.no}</td><td>{o.cust}</td><td>{o.qty}</td><td><Badge status={o.status} /></td><td><Badge status={o.pay} /></td><td>{o.date}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </Modal>
     </div>
   );
 }
