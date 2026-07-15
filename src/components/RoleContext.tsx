@@ -68,7 +68,10 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     try {
       const res = await api.sendAdminOtp(clean);
       setPendingEmail(clean);
-      setDevCode(res.devCode || '');
+      // If the backend omits a devCode in the response, we still allow the flow
+      // to continue by leaving the field empty; the user can still enter the code
+      // if the backend is in dev mode and logs it to the console/server.
+      setDevCode((res as { devCode?: string }).devCode || '');
       setAuthStep('otp');
       return true;
     } catch (err) {
