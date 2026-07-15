@@ -19,6 +19,21 @@ import mongoose from 'mongoose';
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/garm';
 
+// Atomic order sequence — MUST use the exact same 'counters' collection + key
+// ('orderSeq') the Garm App backend uses (Latest version of FAB/backend/src/
+// models/Order.ts), so an order logged manually here and an order placed in
+// the app never collide on `seq` or the derived `FL-<n>` orderRef.
+const CounterSchema = new mongoose.Schema({ _id: String, value: { type: Number, default: 0 } });
+const Counter = mongoose.models.Counter || mongoose.model('Counter', CounterSchema, 'counters');
+export async function nextOrderSeq() {
+  const doc = await Counter.findByIdAndUpdate(
+    'orderSeq',
+    { $inc: { value: 1 } },
+    { upsert: true, new: true }
+  );
+  return doc.value;
+}
+
 const SizeEntrySchema = new mongoose.Schema({ label: String, qty: Number }, { _id: false });
 const ColorEntrySchema = new mongoose.Schema({ hex: String, pantone: String, label: String, position: String }, { _id: false });
 const AccessoryItemSchema = new mongoose.Schema({ categoryId: String, categoryLabel: String, itemName: String, qty: Number }, { _id: false });
@@ -39,7 +54,9 @@ const OrderDocumentSchema = new mongoose.Schema({
 const OrderSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    orderRef: { type: String, unique: true },
+    // sparse so manual/legacy orders without an orderRef don't collide on a
+    // null value — MUST match the Garm App backend's Order schema (unique + sparse).
+    orderRef: { type: String, unique: true, sparse: true },
     persona: { type: String, enum: ['organisation', 'individual'], required: true },
     isAccessoryOrder: { type: Boolean, default: false },
 
@@ -181,9 +198,23 @@ export function isMongoConnected() { return connected; }
 export function connectMongo() {
   if (!connectPromise) {
     connectPromise = mongoose.connect(MONGODB_URI)
-      .then(() => {
+      .then(async () => {
         connected = true;
         console.log(`[mongo] connected to ${MONGODB_URI} — orders now shared with the Garm App backend`);
+        // One-time index reconciliation: an earlier build shipped `orderRef`
+        // as a NON-sparse unique index, which conflicts with the Garm App
+        // backend's sparse one and rejects a second null-orderRef order with
+        // E11000. If the stale non-sparse index is present, drop it and
+        // recreate it sparse. Idempotent + targeted (only touches orderRef_1).
+        try {
+          const existing = await MongoOrder.collection.indexes();
+          const ref = existing.find((i) => i.name === 'orderRef_1');
+          if (ref && !ref.sparse) {
+            await MongoOrder.collection.dropIndex('orderRef_1').catch(() => {});
+            await MongoOrder.collection.createIndex({ orderRef: 1 }, { unique: true, sparse: true }).catch(() => {});
+            console.log('[mongo] migrated orderRef index → unique + sparse');
+          }
+        } catch { /* non-fatal — index may not exist yet on a fresh DB */ }
       })
       .catch((err) => {
         connected = false;

@@ -690,21 +690,14 @@ const routes = [
     if (!order || order.customerId !== customer.id) return send(res, 404, { error: 'Order not found' });
     send(res, 200, { order: toGarmOrder(order) });
   }],
-  ['POST', /^\/api\/garm\/orders$/, async (_p, body, res) => {
-    const customer = requireCustomer(res);
-    if (!customer) return send(res, 401, { error: 'Not signed in' });
-    const persona = body.persona || (customer.accountType === 'organisation' ? 'organisation' : 'individual');
-    const order = await db.createOrder({
-      ...body,
-      customerId: customer.id,
-      persona,
-      cust: customer.orgName || customer.name,
-      type: persona === 'organisation' ? 'B2B' : 'B2C',
-      email: customer.email || '',
-      address: customer.addresses?.find((a) => a.isDefault)?.line1 || customer.addresses?.[0]?.line1 || '',
-    });
-    broadcast('order:created', order);
-    send(res, 201, { order: toGarmOrder(order) });
+  // RETIRED: customer order creation is owned by the Garm App's own backend
+  // (Latest version of FAB/backend), which assigns userId/seq/orderRef correctly.
+  // This admin-side path attached every order to the shared "walk-in" user and
+  // set a `customerId` field the schema doesn't have, so orders created here were
+  // never retrievable by their owner (list/get filter on userId/customerId).
+  // Returned 410 rather than half-fixed to avoid a silent data-integrity trap.
+  ['POST', /^\/api\/garm\/orders$/, async (_p, _b, res) => {
+    send(res, 410, { error: 'Order creation moved to the Garm App backend. This endpoint is retired.' });
   }],
   ['PATCH', /^\/api\/garm\/orders\/(?<id>\d+)$/, async (p, body, res) => {
     const customer = requireCustomer(res);
@@ -733,18 +726,10 @@ const routes = [
     broadcast('order:status_changed', order);
     send(res, 200, { success: true, order: toGarmOrder(order) });
   }],
-  ['POST', /^\/api\/garm\/orders\/(?<id>\d+)\/reorder$/, async (p, _b, res) => {
-    const customer = requireCustomer(res);
-    if (!customer) return send(res, 401, { error: 'Not signed in' });
-    const existing = await db.getOrder(Number(p.id));
-    if (!existing || existing.customerId !== customer.id) return send(res, 404, { error: 'Order not found' });
-    const order = await db.createOrder({
-      ...existing,
-      customerId: customer.id,
-      quoteAmount: null,
-    });
-    broadcast('order:created', order);
-    send(res, 201, { order: toGarmOrder(order) });
+  // RETIRED alongside POST /api/garm/orders — reorder also went through the
+  // walk-in createOrder path. Handled by the Garm App backend instead.
+  ['POST', /^\/api\/garm\/orders\/(?<id>\d+)\/reorder$/, async (_p, _b, res) => {
+    send(res, 410, { error: 'Reorder moved to the Garm App backend. This endpoint is retired.' });
   }],
   ['GET', /^\/api\/garm\/orders\/(?<id>\d+)\/quote$/, async (p, _b, res) => {
     const customer = requireCustomer(res);

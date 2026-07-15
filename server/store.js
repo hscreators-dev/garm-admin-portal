@@ -10,7 +10,7 @@ import { fileURLToPath } from 'url';
 import { buildSeed } from './seed.js';
 import { buildInvoicePdf } from './invoice.js';
 import { encryptFields, decryptFields, hashSecret, timingSafeEqualStr } from './security.js';
-import { MongoOrder, MongoQuote, MongoUser, getOrCreateWalkInUser } from './mongo.js';
+import { MongoOrder, MongoQuote, MongoUser, getOrCreateWalkInUser, nextOrderSeq } from './mongo.js';
 
 function randomToken() {
   return crypto.randomBytes(24).toString('hex');
@@ -595,8 +595,16 @@ export const db = {
     // orders come in through the app's own backend (Latest version of FAB/backend),
     // not through this function.
     const walkIn = await getOrCreateWalkInUser();
+    // Every admin operation addresses orders by `seq` (getOrder/updateOrderStatus/
+    // addOrderDocument/generateInvoice all query { seq }), so a manual order MUST
+    // get one — otherwise it lists but 404s the moment it's opened/edited/invoiced.
+    // Derived from the SAME atomic counter the app backend uses, so the two never
+    // collide; orderRef follows the identical FL-<2046+seq> scheme.
+    const seq = await nextOrderSeq();
     const doc = await MongoOrder.create({
       userId: walkIn._id,
+      seq,
+      orderRef: `FL-${2046 + seq}`,
       persona: input.persona ?? (input.type === 'B2B' ? 'organisation' : 'individual'),
       isAccessoryOrder: input.isAccessoryOrder ?? false,
       orgType: input.orgType ?? undefined,
