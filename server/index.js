@@ -29,8 +29,13 @@ const PORT = process.env.PORT || 5050;
 // regardless of OTP_DEV_MODE — otherwise anyone could request a code for any
 // admin/customer email and get it straight back in the response, then log in
 // as that account. In production you MUST wire a real Twilio/Gmail send.
-const OTP_DEV_MODE = process.env.NODE_ENV !== 'production' && process.env.OTP_DEV_MODE !== 'false';
-if (process.env.NODE_ENV === 'production' && process.env.OTP_DEV_MODE !== 'false' && !process.env.OTP_GATEWAY_WIRED) {
+// Dev-OTP escape hatch: ALLOW_DEV_OTP=true re-enables the on-screen code even in
+// production, so you can log in for FREE with NO email/SMS gateway. Off by
+// default. While it's on, anyone who knows an admin email can sign in as it —
+// turn it back off once real email (SMTP) delivery is working.
+const ALLOW_DEV_OTP = process.env.ALLOW_DEV_OTP === 'true';
+const OTP_DEV_MODE = ALLOW_DEV_OTP || (process.env.NODE_ENV !== 'production' && process.env.OTP_DEV_MODE !== 'false');
+if (process.env.NODE_ENV === 'production' && !ALLOW_DEV_OTP && process.env.OTP_DEV_MODE !== 'false' && !process.env.OTP_GATEWAY_WIRED) {
   console.warn('[security] OTP dev-code is force-disabled in production. Wire a real SMS/email gateway so codes can actually be delivered.');
 }
 
