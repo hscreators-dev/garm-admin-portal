@@ -336,6 +336,8 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
   const [docKind, setDocKind] = useState('INVOICE');
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [generatingInvoice, setGeneratingInvoice] = useState(false);
+  const [shipModal, setShipModal] = useState(false);
+  const [shipForm, setShipForm] = useState({ courier: '', tracking: '' });
 
   const isB2C = order.type === 'B2C';
   const pieces = totalPieces(order);
@@ -387,6 +389,17 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
     const alreadyPartial = order.pay === 'PARTIAL' || order.paymentStatus === 'partial';
     const pay = alreadyPartial || payForm.amount >= displayTotal ? 'COMPLETED' : 'PARTIAL';
     patchOrder({ pay }, `Payment of ${formatINR(payForm.amount)} recorded — order marked ${pay === 'COMPLETED' ? 'fully paid' : 'partially paid (advance)'}`);
+  }
+
+  function confirmShip() {
+    const courier = shipForm.courier.trim();
+    const tracking = shipForm.tracking.trim();
+    patchOrder(
+      { status: 'SHIPPED', trackingCourier: courier || undefined, trackingNumber: tracking || undefined },
+      tracking ? `Marked Shipped · ${courier || 'courier'} ${tracking} — the customer can track it in the app.` : 'Marked as Shipped — the customer got the Shipped update in Track.',
+    );
+    setShipModal(false);
+    setShipForm({ courier: '', tracking: '' });
   }
 
   async function generateInvoice() {
@@ -468,12 +481,15 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
 
   async function runNextAction() {
     if (!nextAction) return;
+    // Shipping: capture courier + tracking number first, so the admin has the
+    // dispatch record and the customer can follow the parcel from Track.
+    if (nextAction.patch.status === 'SHIPPED') { setShipModal(true); return; }
     const effects: Record<string, string> = {
       IN_PROGRESS: 'Marks production as started. Internal only — the customer already sees In production.',
       SHIPPED: `The customer is notified immediately: their tracker moves to Shipped. Do this once the goods are received from ${order.mfr !== '—' ? order.mfr : 'the manufacturer'} and packed for dispatch.`,
       QC_READY: 'Sends the received goods to Quality Control. Internal only.',
       INVOICED: 'Marks this order as invoiced.',
-      DELIVERED: "The customer's tracker completes with Delivered and the order is closed.",
+      DELIVERED: `Mark this only once the courier confirms delivery${order.trackingNumber ? ` (track ${order.trackingCourier || ''} ${order.trackingNumber} on the courier's site)` : ''}. The customer's tracker completes with Delivered and the order is closed.`,
     };
     const ok = await confirm({
       title: nextAction.label,
@@ -828,6 +844,21 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
           </div>
           <div className="form-field full"><label>Estimated delivery date</label><input type="date" value={assignEta} onChange={(e) => setAssignEta(e.target.value)} /></div>
         </div>
+      </Modal>
+
+      {/* Dispatch — capture courier + tracking */}
+      <Modal open={shipModal} title={`Ship ${order.no}`} confirmLabel="Mark Shipped" onClose={() => setShipModal(false)} onConfirm={confirmShip}>
+        <div className="small-muted" style={{ marginBottom: 12 }}>
+          Enter the courier and tracking number (recommended). The customer sees these on their Track screen and can follow the parcel. You'll later click <b>Mark Delivered</b> once the courier confirms delivery.
+        </div>
+        <div className="form-grid">
+          <div className="form-field"><label>Courier / logistics</label>
+            <input list="couriers" value={shipForm.courier} onChange={(e) => setShipForm({ ...shipForm, courier: e.target.value })} placeholder="e.g. DTDC, Delhivery, Blue Dart" />
+            <datalist id="couriers"><option value="DTDC" /><option value="Delhivery" /><option value="Blue Dart" /><option value="India Post" /><option value="Ekart" /><option value="Xpressbees" /><option value="Professional Couriers" /></datalist>
+          </div>
+          <div className="form-field"><label>Tracking number</label><input value={shipForm.tracking} onChange={(e) => setShipForm({ ...shipForm, tracking: e.target.value })} placeholder="e.g. DTDC-9823441" /></div>
+        </div>
+        <div className="small-muted" style={{ marginTop: 8 }}>You can leave these blank if not available yet — but the customer won't have anything to track.</div>
       </Modal>
 
       {/* Record offline payment */}

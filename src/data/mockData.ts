@@ -59,6 +59,8 @@ export interface Order {
   paymentReference?: string | null;
   confirmedAt?: string | null;
   assignedEmployee?: string | null;
+  trackingCourier?: string | null;
+  trackingNumber?: string | null;
   documents?: OrderDocument[];
 }
 

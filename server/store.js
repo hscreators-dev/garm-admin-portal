@@ -212,6 +212,8 @@ function toAdminOrder(o) {
     paymentReference: o.paymentReference ?? null,
     confirmedAt: o.confirmedAt ? new Date(o.confirmedAt).toISOString().slice(0, 10) : null,
     assignedEmployee: o.assignedEmployee ?? null,
+    trackingCourier: o.trackingCourier ?? null,
+    trackingNumber: o.trackingNumber ?? null,
     documents: (o.documents || []).map((d) => ({
       id: String(d._id),
       name: d.name,
@@ -641,6 +643,18 @@ export const db = {
         if (payStep && order.paymentStatus !== 'paid') payStep.sub = 'Pay now to start production';
       }
       recomputeTrackSteps(order);
+    }
+    if (patch.trackingCourier !== undefined) order.trackingCourier = patch.trackingCourier || undefined;
+    if (patch.trackingNumber !== undefined) order.trackingNumber = patch.trackingNumber || undefined;
+    // On dispatch, stamp the customer's Shipped step with the courier + tracking
+    // number so they can follow the parcel from their own Track screen.
+    if (patch.status === 'SHIPPED' && (order.trackingCourier || order.trackingNumber) && Array.isArray(order.trackSteps)) {
+      const shipStep = order.trackSteps.find((s2) => s2.label.toLowerCase().includes('ship'));
+      if (shipStep) {
+        const bits = [order.trackingCourier, order.trackingNumber].filter(Boolean).join(' · ');
+        shipStep.sub = bits ? `Dispatched · ${bits}` : shipStep.sub;
+        order.markModified('trackSteps');
+      }
     }
     if (patch.assignedEmployee !== undefined) order.assignedEmployee = patch.assignedEmployee || undefined;
     if (patch.etaDate !== undefined) order.etaDate = patch.etaDate || undefined;

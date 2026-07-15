@@ -97,6 +97,8 @@ const OrderSchema = new mongoose.Schema(
     total: { type: Number, default: 0 },
     lines: { type: [OrderLineSchema], default: [] },
     documents: { type: [OrderDocumentSchema], default: [] },
+    trackingCourier: { type: String },
+    trackingNumber: { type: String },
   },
   { timestamps: true, collection: 'orders' }
 );

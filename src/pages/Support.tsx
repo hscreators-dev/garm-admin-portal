@@ -59,7 +59,27 @@ export default function Support() {
     return true;
   }), [tickets, filter, search]);
 
+  // Two OPEN/IN_PROGRESS tickets from the same customer that share a category or
+  // order are almost certainly the same issue raised twice. Flag them so the
+  // admin can merge/close instead of working both sides separately.
+  function siblingsOf(t: SupportTicket): SupportTicket[] {
+    const who = t.userId || t.customerEmail || t.customerPhone || t.customerName;
+    if (!who) return [];
+    return tickets.filter((o) =>
+      o._id !== t._id &&
+      (o.status === 'OPEN' || o.status === 'IN_PROGRESS') &&
+      (o.userId || o.customerEmail || o.customerPhone || o.customerName) === who &&
+      ((t.orderRef && o.orderRef && t.orderRef === o.orderRef) ||
+       (t.category && o.category && t.category === o.category) ||
+       (t.type === 'return' && o.type === 'return')));
+  }
+  function isDuplicate(t: SupportTicket): boolean {
+    if (t.status !== 'OPEN' && t.status !== 'IN_PROGRESS') return false;
+    return siblingsOf(t).length > 0;
+  }
+
   const selected = tickets.find((t) => t._id === selId) || null;
+  const selectedSiblings = selected ? siblingsOf(selected) : [];
   useEffect(() => { if (threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight; }, [selected?.messages.length, selId]);
 
   const openCount = tickets.filter((t) => t.status === 'OPEN').length;
@@ -171,12 +191,16 @@ export default function Support() {
             {visible.map((t) => {
               const s = STATUS_META[t.status] ?? STATUS_META.OPEN;
               const last = t.messages[t.messages.length - 1];
+              const dupe = isDuplicate(t);
               return (
                 <button key={t._id} onClick={() => setSelId(t._id)}
                   style={{ display: 'block', width: '100%', textAlign: 'left', padding: '11px 14px', border: 'none', borderBottom: '1px solid var(--border)', background: selId === t._id ? 'var(--muted, #f6f6f5)' : 'transparent', cursor: 'pointer' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
                     <span className="small-muted" style={{ fontSize: 11 }}>{t.ref}</span>
-                    <span style={{ fontSize: 10.5, fontWeight: 600, padding: '1px 7px', borderRadius: 999, background: s.bg, color: s.color }}>{s.label}</span>
+                    <span style={{ display: 'inline-flex', gap: 5, alignItems: 'center' }}>
+                      {dupe && <span title="Same customer has another open ticket in this category / order" style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 999, background: '#fff7ed', color: '#9a3412', border: '1px solid #fed7aa' }}>Possible duplicate</span>}
+                      <span style={{ fontSize: 10.5, fontWeight: 600, padding: '1px 7px', borderRadius: 999, background: s.bg, color: s.color }}>{s.label}</span>
+                    </span>
                   </div>
                   <div style={{ fontWeight: 600, fontSize: 13 }}>{t.type === 'return' ? '↩ ' : ''}{t.subject}</div>
                   <div className="small-muted" style={{ fontSize: 12, marginTop: 1 }}>{t.customerName}{t.type === 'return' ? ' · Return' : ''}{t.priority === 'HIGH' && t.type !== 'return' ? ' · ⚠ High' : ''}</div>
@@ -193,6 +217,21 @@ export default function Support() {
             <div className="small-muted" style={{ padding: 40, textAlign: 'center' }}>Select a ticket to view the conversation.</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 220px)' }}>
+              {selectedSiblings.length > 0 && (
+                <div style={{ padding: '10px 16px', background: '#fff7ed', borderBottom: '1px solid #fed7aa' }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: '#9a3412' }}>Possible duplicate — same customer, {selected.orderRef ? `order ${selected.orderRef}` : `“${selected.category}”`}</div>
+                  <div className="small-muted" style={{ fontSize: 11.5, marginTop: 2 }}>
+                    Also open:{' '}
+                    {selectedSiblings.map((sib, i) => (
+                      <span key={sib._id}>
+                        {i > 0 ? ', ' : ''}
+                        <a className="link" onClick={() => setSelId(sib._id)}>{sib.ref}</a>
+                      </span>
+                    ))}
+                    . Reply on one and mark the other Resolved to avoid answering twice.
+                  </div>
+                </div>
+              )}
               <div style={{ padding: 16, borderBottom: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                   <div>
