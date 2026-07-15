@@ -55,9 +55,31 @@ async function postJson(url, body, headers) {
 }
 
 // ── EMAIL ─────────────────────────────────────────────────────────────────────
+let _smtp = null;
+async function smtpSend(to, code) {
+  const from = process.env.EMAIL_FROM || process.env.SMTP_USER;
+  if (!_smtp) {
+    const nodemailer = (await import('nodemailer')).default;
+    _smtp = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT || 587),
+      secure: String(process.env.SMTP_PORT) === '465',
+      auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
+    });
+  }
+  await _smtp.sendMail({
+    from: `"${APP_NAME}" <${from}>`, to,
+    subject: `${code} — Your ${APP_NAME} code`, html: otpHtml(code), text: otpText(code),
+  });
+  return { delivered: true, channel: 'email' };
+}
+
 async function sendEmail(to, code) {
+  // Prefer SMTP (Gmail / any host) when configured — same SMTP_* vars the app
+  // backend uses, so one email setup covers BOTH backends.
+  if (process.env.SMTP_HOST) return smtpSend(to, code);
   const url = process.env.EMAIL_API_URL;
-  if (!url) return { delivered: false, reason: 'EMAIL_API_URL not set' };
+  if (!url) return { delivered: false, reason: 'no SMTP_HOST and no EMAIL_API_URL set' };
   const from = process.env.EMAIL_FROM || `no-reply@${APP_NAME.toLowerCase()}.app`;
   const key = process.env.EMAIL_API_KEY;
   const provider = (process.env.EMAIL_PROVIDER || 'generic').toLowerCase();
