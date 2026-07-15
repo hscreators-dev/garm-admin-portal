@@ -65,6 +65,11 @@ async function smtpSend(to, code) {
       port: Number(process.env.SMTP_PORT || 587),
       secure: String(process.env.SMTP_PORT) === '465',
       auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
+      // Never let a broken/unreachable SMTP host hang the login request —
+      // fail fast so the caller can fall back (dev code / 502) quickly.
+      connectionTimeout: 8000,
+      greetingTimeout: 8000,
+      socketTimeout: 10000,
     });
   }
   await _smtp.sendMail({
