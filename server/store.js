@@ -247,6 +247,23 @@ function load() {
   if (fs.existsSync(DB_FILE)) {
     try {
       data = fromDiskFormat(JSON.parse(fs.readFileSync(DB_FILE, 'utf8')));
+      // Self-heal: records encrypted with a DIFFERENT secret key (e.g. a
+      // db.json copied between machines/deploys) can't be decrypted — they'd
+      // show as "enc:v1:…" garbage in the UI and be uneditable. Replace the
+      // employee/user list with a fresh seed in that case (SUPER_ADMIN_EMAIL
+      // re-provisions the real admin on boot), and reset undecryptable
+      // company settings. Catalog/settings that aren't encrypted are kept.
+      const looksEncrypted = (v) => typeof v === 'string' && v.startsWith('enc:v1:');
+      if ((data.users || []).some((u) => looksEncrypted(u.email) || looksEncrypted(u.name))) {
+        console.warn('[security] users were encrypted with a different key — reseeding the employee list.');
+        data.users = buildSeed().users;
+      }
+      if (data.customers) data.customers = data.customers.filter((c) => !looksEncrypted(c.email) && !looksEncrypted(c.name));
+      if (data.otps) data.otps = data.otps.filter((o) => !looksEncrypted(o.identity));
+      if (data.settings?.company && Object.values(data.settings.company).some(looksEncrypted)) {
+        console.warn('[security] company settings were encrypted with a different key — resetting to defaults.');
+        data.settings.company = buildSeed().settings.company;
+      }
       migrate();
       return;
     } catch {
