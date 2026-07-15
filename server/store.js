@@ -654,6 +654,22 @@ export const db = {
       // Mark the tracker's Payment step done + advance the customer status.
       order.status = deriveCustomerStatus(order.adminStatus, order.persona);
       recomputeTrackSteps(order);
+      // Offline recordings never hit the app's own pay endpoint, so tick the
+      // customer's Payment step here too — otherwise the customer keeps seeing
+      // "payment pending" after the admin recorded their bank/cash payment.
+      if (patch.pay === 'COMPLETED' && Array.isArray(order.trackSteps)) {
+        const payIdx = order.trackSteps.findIndex((s2) => s2.label.toLowerCase().includes('payment'));
+        if (payIdx >= 0) {
+          const when = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+          order.trackSteps = order.trackSteps.map((s2, i) => {
+            if (i < payIdx) return { ...s2, status: 'done' };
+            if (i === payIdx) return { ...s2, sub: `Payment received · ${when}`, status: 'done' };
+            if (i === payIdx + 1 && s2.status === 'pending') return { ...s2, status: 'active' };
+            return s2;
+          });
+          order.markModified('trackSteps');
+        }
+      }
     }
     if (patch.notes !== undefined) order.notes = patch.notes;
     if (patch.total !== undefined) order.total = patch.total;
