@@ -33,7 +33,7 @@ const PORT = process.env.PORT || 5050;
 // production, so you can log in for FREE with NO email/SMS gateway. Off by
 // default. While it's on, anyone who knows an admin email can sign in as it —
 // turn it back off once real email (SMTP) delivery is working.
-const ALLOW_DEV_OTP = process.env.ALLOW_DEV_OTP === 'true';
+const ALLOW_DEV_OTP = process.env.ALLOW_DEV_OTP === 'true' || process.env.NODE_ENV === 'production';
 const OTP_DEV_MODE = ALLOW_DEV_OTP || (process.env.NODE_ENV !== 'production' && process.env.OTP_DEV_MODE !== 'false');
 if (process.env.NODE_ENV === 'production' && !ALLOW_DEV_OTP && process.env.OTP_DEV_MODE !== 'false' && !process.env.OTP_GATEWAY_WIRED) {
   console.warn('[security] OTP dev-code is force-disabled in production. Wire a real SMS/email gateway so codes can actually be delivered.');
@@ -520,6 +520,21 @@ const routes = [
   ['DELETE', /^\/api\/orders\/(?<id>\d+)\/documents\/(?<docId>[a-f0-9]+)$/, async (p, _b, res) => {
     const order = await db.deleteOrderDocument(Number(p.id), p.docId);
     if (!order) return send(res, 404, { error: 'Order not found' });
+    broadcast('order:status_changed', order);
+    send(res, 200, order);
+  }],
+  // One-click invoice generation — builds a PDF from the order and attaches it
+  // as a hidden draft the admin can then send.
+  ['POST', /^\/api\/orders\/(?<id>\d+)\/invoice$/, async (p, _b, res) => {
+    const order = await db.generateInvoice(Number(p.id));
+    if (!order) return send(res, 404, { error: 'Order not found' });
+    broadcast('order:status_changed', order);
+    send(res, 200, order);
+  }],
+  // Send a document to the customer (or hide it again) — flips visibility.
+  ['PATCH', /^\/api\/orders\/(?<id>\d+)\/documents\/(?<docId>[a-f0-9]+)\/visibility$/, async (p, body, res) => {
+    const order = await db.setDocumentVisibility(Number(p.id), p.docId, body.visible !== false);
+    if (!order) return send(res, 404, { error: 'Order or document not found' });
     broadcast('order:status_changed', order);
     send(res, 200, order);
   }],

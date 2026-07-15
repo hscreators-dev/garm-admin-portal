@@ -240,6 +240,9 @@ export const api = {
     http<Order>(`/api/orders/${id}/documents`, { method: 'POST', body: JSON.stringify(doc) }),
   deleteOrderDocument: (id: number, docId: string) =>
     http<Order>(`/api/orders/${id}/documents/${docId}`, { method: 'DELETE' }),
+  generateInvoice: (id: number) => http<Order>(`/api/orders/${id}/invoice`, { method: 'POST' }),
+  setDocumentVisibility: (id: number, docId: string, visible: boolean) =>
+    http<Order>(`/api/orders/${id}/documents/${docId}/visibility`, { method: 'PATCH', body: JSON.stringify({ visible }) }),
 
   // Support tickets (raised in the Garm App; worked here)
   getTickets: () => http<{ tickets: SupportTicket[] }>('/api/support/tickets'),

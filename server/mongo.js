@@ -29,6 +29,11 @@ const OrderDocumentSchema = new mongoose.Schema({
   kind: { type: String, enum: ['INVOICE', 'QUOTATION', 'BILLING', 'DESIGN', 'OTHER'], default: 'OTHER' },
   dataUrl: { type: String, required: true },
   uploadedBy: { type: String, enum: ['admin', 'customer'], required: true },
+  // Generated (vs uploaded) invoices; and whether the customer can see it yet.
+  // visible defaults true so every existing/uploaded doc stays visible; a
+  // GENERATED invoice starts hidden (draft) until the admin clicks "Send".
+  generated: { type: Boolean, default: false },
+  visible: { type: Boolean, default: true },
 }, { timestamps: { createdAt: true, updatedAt: false } });
 
 const OrderSchema = new mongoose.Schema(

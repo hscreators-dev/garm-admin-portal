@@ -8,6 +8,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { buildSeed } from './seed.js';
+import { buildInvoicePdf } from './invoice.js';
 import { encryptFields, decryptFields, hashSecret, timingSafeEqualStr } from './security.js';
 import { MongoOrder, MongoQuote, getOrCreateWalkInUser } from './mongo.js';
 
@@ -217,6 +218,8 @@ function toAdminOrder(o) {
       kind: d.kind,
       uploadedBy: d.uploadedBy,
       dataUrl: d.dataUrl,
+      generated: d.generated === true,
+      visible: d.visible !== false,
       createdAt: d.createdAt ? new Date(d.createdAt).toISOString().slice(0, 10) : null,
     })),
   };
@@ -696,6 +699,50 @@ export const db = {
     const order = await MongoOrder.findOne({ seq: id });
     if (!order) return null;
     order.documents = order.documents.filter((d) => String(d._id) !== String(docId));
+    await order.save();
+    const populated = await order.populate('userId', 'name email phone orgName');
+    return toAdminOrder(populated.toObject());
+  },
+  // One-click: build an invoice PDF from the order's own data and attach it as a
+  // GENERATED, hidden-from-customer draft. The admin reviews it, then "sends".
+  async generateInvoice(id) {
+    const order = await MongoOrder.findOne({ seq: id });
+    if (!order) return null;
+    const populated = await order.populate('userId', 'name email phone orgName');
+    const admin = toAdminOrder(populated.toObject());
+    // Derive subtotal/tax the same way the admin Order view shows them (tax is
+    // 18% inclusive of the line subtotal; service fee is added on top).
+    const lineSubtotal = (admin.lines || []).reduce((sum, l) => sum + (l.qty || 0) * (l.unit || 0), 0);
+    const grand = admin.total || admin.quoteAmount || lineSubtotal + (admin.serviceFee || 0);
+    const taxable = Math.max(0, grand - (admin.serviceFee || 0));
+    const tax = Math.round(taxable - taxable / 1.18);
+    const subtotal = taxable - tax;
+    const c = (data.settings && data.settings.company) || {};
+    const company = {
+      name: c.name || c.legalName || 'Garm',
+      addressLines: [c.addressLine1, c.addressLine2, [c.city, c.state, c.pincode].filter(Boolean).join(' ')].filter(Boolean),
+      gstin: c.gstin || c.gstNumber || '',
+      email: c.email || '',
+      phone: c.phone || '',
+      bankLine: c.bankAccountHolder ? `Bank: ${c.bankAccountHolder} • A/C ${c.accountNumber || ''} • IFSC ${c.ifscCode || ''}` : '',
+    };
+    const inv = buildInvoicePdf({ ...admin, subtotal, tax, deliveryDate: admin.etaDate,
+      customer: { name: admin.cust, phone: admin.contactPhone, email: admin.email },
+      delivery: { address: admin.deliveryAddress, city: admin.deliveryCity, pin: admin.deliveryPin } }, company);
+    // Replace any earlier generated-but-unsent invoice so we don't pile up drafts.
+    order.documents = order.documents.filter((d) => !(d.generated === true && d.visible === false));
+    order.documents.push({ name: inv.name, kind: 'INVOICE', dataUrl: inv.dataUrl, uploadedBy: 'admin', generated: true, visible: false });
+    await order.save();
+    const pop2 = await order.populate('userId', 'name email phone orgName');
+    return toAdminOrder(pop2.toObject());
+  },
+  async setDocumentVisibility(id, docId, visible) {
+    const order = await MongoOrder.findOne({ seq: id });
+    if (!order) return null;
+    const doc = order.documents.find((d) => String(d._id) === String(docId));
+    if (!doc) return null;
+    doc.visible = !!visible;
+    order.markModified('documents');
     await order.save();
     const populated = await order.populate('userId', 'name email phone orgName');
     return toAdminOrder(populated.toObject());

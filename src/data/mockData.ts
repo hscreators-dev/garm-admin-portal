@@ -16,6 +16,8 @@ export interface OrderDocument {
   kind: 'INVOICE' | 'QUOTATION' | 'BILLING' | 'DESIGN' | 'OTHER';
   uploadedBy: 'admin' | 'customer';
   dataUrl: string;
+  generated?: boolean;
+  visible?: boolean; // false = generated draft not yet sent to the customer
   createdAt: string | null;
 }
 export interface Order {

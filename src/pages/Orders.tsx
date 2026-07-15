@@ -335,6 +335,7 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
   const [payForm, setPayForm] = useState({ amount: order.total || order.quoteAmount || 0, method: order.paymentMode || 'Bank Transfer', date: '', reference: '' });
   const [docKind, setDocKind] = useState('INVOICE');
   const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [generatingInvoice, setGeneratingInvoice] = useState(false);
 
   const isB2C = order.type === 'B2C';
   const pieces = totalPieces(order);
@@ -386,6 +387,37 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
     const alreadyPartial = order.pay === 'PARTIAL' || order.paymentStatus === 'partial';
     const pay = alreadyPartial || payForm.amount >= displayTotal ? 'COMPLETED' : 'PARTIAL';
     patchOrder({ pay }, `Payment of ${formatINR(payForm.amount)} recorded — order marked ${pay === 'COMPLETED' ? 'fully paid' : 'partially paid (advance)'}`);
+  }
+
+  async function generateInvoice() {
+    setGeneratingInvoice(true);
+    try {
+      await api.generateInvoice(order.id);
+      showToast('Invoice generated — review it, then click "Send to customer"');
+      onChanged();
+    } catch (err) {
+      showToast(`Could not generate invoice: ${(err as Error).message}`);
+    } finally {
+      setGeneratingInvoice(false);
+    }
+  }
+  async function sendDocument(docId: string, name: string) {
+    try {
+      await api.setDocumentVisibility(order.id, docId, true);
+      showToast(`${name} sent — the customer can download it in the Garm App now`);
+      onChanged();
+    } catch (err) {
+      showToast(`Could not send: ${(err as Error).message}`);
+    }
+  }
+  async function unsendDocument(docId: string, name: string) {
+    try {
+      await api.setDocumentVisibility(order.id, docId, false);
+      showToast(`${name} hidden from the customer again`);
+      onChanged();
+    } catch (err) {
+      showToast(`Could not update: ${(err as Error).message}`);
+    }
   }
 
   async function uploadDocument(file: File | undefined) {
@@ -698,21 +730,38 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
               </div>
             ))}
 
-            {/* Admin uploads (invoice / quotation / billing) — visible to the customer */}
-            {(order.documents || []).filter((d) => d.uploadedBy === 'admin').map((d) => (
-              <div className="doc-item" key={d.id}>
-                <Icon name="file" />
-                <span className="fill">{d.name}<div className="cust-sub">{DOC_KIND_LABELS[d.kind] || d.kind} · shared with customer{d.createdAt ? ` · ${d.createdAt}` : ''}</div></span>
-                <a className="link" onClick={() => downloadDataUrl(d.dataUrl, d.name)}>Download</a>
-                <a className="link" style={{ color: 'var(--danger, #dc2626)', marginLeft: 8 }} onClick={() => removeDocument(d.id, d.name)}>Remove</a>
-              </div>
-            ))}
+            {/* Admin documents — a generated-but-unsent invoice shows as a DRAFT
+                with a Send button; sent docs show "shared with customer". */}
+            {(order.documents || []).filter((d) => d.uploadedBy === 'admin').map((d) => {
+              const draft = d.visible === false;
+              return (
+                <div className="doc-item" key={d.id}>
+                  <Icon name="file" />
+                  <span className="fill">
+                    {d.name}
+                    {draft
+                      ? <span className="tag" style={{ marginLeft: 6, padding: '1px 7px', background: '#fff7ed', color: '#9a3412', border: '1px solid #fed7aa' }}>Draft — not sent</span>
+                      : <span className="tag" style={{ marginLeft: 6, padding: '1px 7px', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0' }}>Sent</span>}
+                    <div className="cust-sub">{DOC_KIND_LABELS[d.kind] || d.kind}{d.generated ? ' · generated' : ''}{d.createdAt ? ` · ${d.createdAt}` : ''}</div>
+                  </span>
+                  <a className="link" onClick={() => downloadDataUrl(d.dataUrl, d.name)}>Preview</a>
+                  {draft
+                    ? <a className="link" style={{ marginLeft: 8, fontWeight: 700 }} onClick={() => sendDocument(d.id, d.name)}>Send to customer</a>
+                    : <a className="link" style={{ marginLeft: 8 }} onClick={() => unsendDocument(d.id, d.name)}>Unsend</a>}
+                  <a className="link" style={{ color: 'var(--danger, #dc2626)', marginLeft: 8 }} onClick={() => removeDocument(d.id, d.name)}>Remove</a>
+                </div>
+              );
+            })}
 
             {!(order.documents || []).length && (
-              <div className="small-muted" style={{ marginBottom: 8 }}>No documents yet. Upload an invoice, quotation or billing document — it appears in the customer's Garm App instantly.</div>
+              <div className="small-muted" style={{ marginBottom: 8 }}>No documents yet. Generate an invoice in one click, or upload a quotation / billing document — sent documents appear in the customer's Garm App instantly.</div>
             )}
 
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10, flexWrap: 'wrap' }}>
+              <button className="btn btn-primary btn-sm" disabled={generatingInvoice} onClick={generateInvoice}>
+                <Icon name="file" /> {generatingInvoice ? 'Generating…' : 'Generate Invoice'}
+              </button>
+              <span className="small-muted">or</span>
               <select className="field-sm" value={docKind} onChange={(e) => setDocKind(e.target.value)}>
                 <option value="INVOICE">Invoice</option>
                 <option value="QUOTATION">Quotation</option>
@@ -725,6 +774,7 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
                   onChange={(e) => { uploadDocument(e.target.files?.[0]); e.target.value = ''; }} />
               </label>
             </div>
+            <div className="small-muted" style={{ marginTop: 6 }}>Generate Invoice builds a PDF from this order. It stays a draft until you click <b>Send to customer</b>.</div>
             <hr className="sep" />
             <div className="doc-item"><Icon name="printer" /><span className="fill">Order sheet {order.no}</span><a className="link" onClick={() => window.print()}>Print</a></div>
           </div>
