@@ -244,6 +244,14 @@ export const api = {
   setDocumentVisibility: (id: number, docId: string, visible: boolean) =>
     http<Order>(`/api/orders/${id}/documents/${docId}/visibility`, { method: 'PATCH', body: JSON.stringify({ visible }) }),
 
+  // Garm App customers (registered accounts + order stats)
+  getCustomers: () => http<{ customers: {
+    id: string; name: string; phone: string; email: string;
+    accountType: 'B2C' | 'B2B'; orgName: string | null; orgType: string | null;
+    onboarded: boolean; registeredAt: string | null;
+    orders: number; spend: number; lastOrderAt: string | null;
+  }[] }>('/api/customers'),
+
   // Support tickets (raised in the Garm App; worked here)
   getTickets: () => http<{ tickets: SupportTicket[] }>('/api/support/tickets'),
   replyTicket: (id: string, body: string) => http<{ ticket: SupportTicket }>(`/api/support/tickets/${id}/messages`, { method: 'POST', body: JSON.stringify({ body }) }),

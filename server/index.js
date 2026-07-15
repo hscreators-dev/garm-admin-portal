@@ -539,6 +539,12 @@ const routes = [
     send(res, 200, order);
   }],
 
+  // Garm App customers — every account that registered/signed in via the app,
+  // with order counts. Individual/Organisation split happens client-side.
+  ['GET', /^\/api\/customers$/, async (_p, _b, res) => {
+    send(res, 200, { customers: await db.listAppCustomers() });
+  }],
+
   // Users — Super-Admin-provisioned identities driving role-based access control.
   // Signing in now goes through /api/auth/admin/* (OTP-verified) below, not
   // this lookup — this stays as an authenticated-only directory/management endpoint.

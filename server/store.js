@@ -10,7 +10,7 @@ import { fileURLToPath } from 'url';
 import { buildSeed } from './seed.js';
 import { buildInvoicePdf } from './invoice.js';
 import { encryptFields, decryptFields, hashSecret, timingSafeEqualStr } from './security.js';
-import { MongoOrder, MongoQuote, getOrCreateWalkInUser } from './mongo.js';
+import { MongoOrder, MongoQuote, MongoUser, getOrCreateWalkInUser } from './mongo.js';
 
 function randomToken() {
   return crypto.randomBytes(24).toString('hex');
@@ -760,6 +760,34 @@ export const db = {
     await order.save();
     const populated = await order.populate('userId', 'name email phone orgName');
     return toAdminOrder(populated.toObject());
+  },
+
+  // ---- Garm App customers (every account that signed in / registered) ----
+  async listAppCustomers() {
+    const users = await MongoUser.find({}).sort({ createdAt: -1 }).lean();
+    const counts = await MongoOrder.aggregate([
+      { $group: { _id: '$userId', orders: { $sum: 1 }, spend: { $sum: { $ifNull: ['$total', 0] } }, lastOrderAt: { $max: '$createdAt' } } },
+    ]);
+    const byUser = new Map(counts.map((c) => [String(c._id), c]));
+    return users
+      .filter((u) => u.email !== 'walkin@garm.local')
+      .map((u) => {
+        const c = byUser.get(String(u._id));
+        return {
+          id: String(u._id),
+          name: u.name || '(not onboarded yet)',
+          phone: u.phone || '',
+          email: u.email || '',
+          accountType: u.accountType === 'organisation' ? 'B2B' : 'B2C',
+          orgName: u.orgName || null,
+          orgType: u.orgType || null,
+          onboarded: !!u.onboardingComplete,
+          registeredAt: u.createdAt ? new Date(u.createdAt).toISOString().slice(0, 10) : null,
+          orders: c ? c.orders : 0,
+          spend: c ? c.spend : 0,
+          lastOrderAt: c && c.lastOrderAt ? new Date(c.lastOrderAt).toISOString().slice(0, 10) : null,
+        };
+      });
   },
 
   // ---- users (identity + role-based access control) ----

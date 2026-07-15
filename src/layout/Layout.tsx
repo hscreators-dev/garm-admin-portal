@@ -15,6 +15,7 @@ const WORKSPACE_NAV = [
   { view: 'dashboard', icon: 'grid', label: 'Dashboard' },
   { view: 'catalog', icon: 'tag', label: 'Catalog' },
   { view: 'orders', icon: 'package', label: 'Orders' },
+  { view: 'customers', icon: 'users', label: 'Customers' },
   { view: 'manufacturers', icon: 'factory', label: 'Manufacturers' },
   { view: 'qc', icon: 'shield', label: 'Quality Control' },
   { view: 'documents', icon: 'file', label: 'Documents' },
