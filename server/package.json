@@ -12,7 +12,8 @@
     "simulate": "node simulate-order.js"
   },
   "dependencies": {
-    "mongoose": "^8.24.1"
+    "mongoose": "^8.24.1",
+    "nodemailer": "^6.9.14"
   },
   "engines": {
     "node": ">=18"
