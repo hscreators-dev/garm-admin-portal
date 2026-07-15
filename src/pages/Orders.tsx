@@ -379,8 +379,13 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
   }
 
   function confirmPayment() {
-    const pay = payForm.amount >= displayTotal ? 'COMPLETED' : 'PARTIAL';
-    patchOrder({ pay }, `Payment of ${formatINR(payForm.amount)} recorded — order marked ${pay}`);
+    // A second payment on an already-partial order is the BALANCE — the order
+    // is then fully settled even though this amount alone is less than the
+    // total. (Previously the balance recording stayed PARTIAL forever, which
+    // kept shipping locked.)
+    const alreadyPartial = order.pay === 'PARTIAL' || order.paymentStatus === 'partial';
+    const pay = alreadyPartial || payForm.amount >= displayTotal ? 'COMPLETED' : 'PARTIAL';
+    patchOrder({ pay }, `Payment of ${formatINR(payForm.amount)} recorded — order marked ${pay === 'COMPLETED' ? 'fully paid' : 'partially paid (advance)'}`);
   }
 
   async function uploadDocument(file: File | undefined) {
