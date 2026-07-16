@@ -481,6 +481,19 @@ const routes = [
   ['PUT', /^\/api\/orders\/(?<id>\d+)\/status$/, async (p, body, res) => {
     const existing = await db.getOrder(Number(p.id));
     if (!existing) return send(res, 404, { error: 'Order not found' });
+    // ── Cancellation & refund guards ──
+    if (body.status === 'CANCELLED' && ['DELIVERED', 'CANCELLED'].includes(existing.status)) {
+      return send(res, 400, { error: existing.status === 'CANCELLED' ? 'This order is already cancelled.' : 'A delivered order cannot be cancelled — issue a refund instead if needed.' });
+    }
+    if (body.refund) {
+      const everPaid = ['paid', 'partial', 'partial_refund'].includes(existing.paymentStatus) || ['COMPLETED', 'PARTIAL'].includes(existing.pay);
+      if (!everPaid) return send(res, 400, { error: 'Nothing to refund — no payment has been received for this order yet.' });
+      const paidTotal = existing.total || existing.quoteAmount || 0;
+      const already = existing.refundAmount || 0;
+      const amt = Math.round(Number(body.refund.amount) || 0);
+      if (amt <= 0) return send(res, 400, { error: 'Enter a refund amount greater than zero.' });
+      if (paidTotal > 0 && already + amt > paidTotal) return send(res, 400, { error: `Refund exceeds the amount paid (₹${paidTotal.toLocaleString('en-IN')}). Already refunded: ₹${already.toLocaleString('en-IN')}.` });
+    }
     const isB2C = existing.type === 'B2C';
     // Individuals (B2C) skip in-house QC entirely — only Organisation (B2B)
     // orders go through inspection. Block the status transition rather than

@@ -338,6 +338,10 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
   const [generatingInvoice, setGeneratingInvoice] = useState(false);
   const [shipModal, setShipModal] = useState(false);
   const [shipForm, setShipForm] = useState({ courier: '', tracking: '' });
+  const [cancelModal, setCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [refundModal, setRefundModal] = useState(false);
+  const [refundForm, setRefundForm] = useState({ amount: 0, reason: '', reference: '' });
 
   const isB2C = order.type === 'B2C';
   const pieces = totalPieces(order);
@@ -350,6 +354,12 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
   const paid = order.paymentStatus === 'paid' || order.pay === 'COMPLETED';
   const awaitingConfirmation = isB2C && order.status === 'NEW';
   const awaitingPayment = isB2C && order.status === 'CONFIRMED' && !paid;
+  // Cancel / refund availability
+  const refundedTotal = order.refundAmount || 0;
+  const everPaid = paid || order.pay === 'PARTIAL' || ['partial', 'paid', 'partial_refund'].includes(order.paymentStatus || '');
+  const fullyRefunded = order.paymentStatus === 'refunded' || (displayTotal > 0 && refundedTotal >= displayTotal);
+  const canCancel = order.status !== 'CANCELLED' && order.status !== 'DELIVERED';
+  const canRefund = everPaid && !fullyRefunded;
 
   async function patchOrder(patch: Record<string, unknown>, okMsg: string) {
     try {
@@ -389,6 +399,25 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
     const alreadyPartial = order.pay === 'PARTIAL' || order.paymentStatus === 'partial';
     const pay = alreadyPartial || payForm.amount >= displayTotal ? 'COMPLETED' : 'PARTIAL';
     patchOrder({ pay }, `Payment of ${formatINR(payForm.amount)} recorded — order marked ${pay === 'COMPLETED' ? 'fully paid' : 'partially paid (advance)'}`);
+  }
+
+  function cancelOrder() {
+    patchOrder(
+      { status: 'CANCELLED', cancelReason: cancelReason.trim() || undefined },
+      `Order ${order.no} cancelled — the customer sees it as Cancelled in the Garm App.${everPaid ? ' Issue a refund from the Payment card if money was collected.' : ''}`,
+    );
+    setCancelModal(false);
+    setCancelReason('');
+  }
+
+  function confirmRefund() {
+    const amount = Math.round(Number(refundForm.amount) || 0);
+    if (amount <= 0) { showToast('Enter a refund amount greater than zero.'); return; }
+    patchOrder(
+      { refund: { amount, reason: refundForm.reason.trim() || undefined, reference: refundForm.reference.trim() || undefined } },
+      `Refund of ${formatINR(amount)} recorded for ${order.no} — the customer sees it in the Garm App.`,
+    );
+    setRefundModal(false);
   }
 
   function confirmShip() {
@@ -531,6 +560,9 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
           )}
           <button className="btn btn-outline btn-sm" onClick={() => setEmployeeModal(true)}><Icon name="user" /> Assign Employee</button>
           <button className={`btn ${order.status === 'PAID' && isB2C ? 'btn-primary' : 'btn-outline'} btn-sm`} onClick={() => setAssignModal(true)}><Icon name="factory" /> Assign Manufacturer</button>
+          {canCancel && (
+            <button className="btn btn-outline btn-sm" style={{ color: '#dc2626', borderColor: '#f3c2c2' }} onClick={() => setCancelModal(true)}><Icon name="xCircle" /> Cancel Order</button>
+          )}
           <button className="btn btn-outline btn-sm" onClick={() => window.print()}><Icon name="printer" /> Print</button>
         </div>
       </div>
@@ -579,6 +611,15 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
         <div className="card card-pad no-print" style={{ marginBottom: 14, borderLeft: '3px solid var(--info, #2563eb)' }}>
           <b>Shipped — on the way to the customer.</b>
           <div className="small-muted" style={{ marginTop: 4 }}>When delivery is confirmed, click "Mark Delivered" above — the customer's tracker completes.</div>
+        </div>
+      )}
+      {order.status === 'CANCELLED' && (
+        <div className="card card-pad no-print" style={{ marginBottom: 14, borderLeft: '3px solid #dc2626' }}>
+          <b>This order is cancelled.</b>
+          <div className="small-muted" style={{ marginTop: 4 }}>
+            {order.cancelReason ? `Reason: ${order.cancelReason}. ` : 'The customer sees this as Cancelled in the Garm App. '}
+            {refundedTotal > 0 ? `Refunded ${formatINR(refundedTotal)}.` : (everPaid ? 'Issue a refund from the Payment card if money was collected.' : 'No payment was collected.')}
+          </div>
         </div>
       )}
 
@@ -720,6 +761,14 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
             <div className="info-row"><span className="k">Method</span><span className="v">{order.paymentMode || (paid ? 'Recorded' : '—')}</span></div>
             {order.paymentDate && <div className="info-row"><span className="k">Paid on</span><span className="v">{order.paymentDate}</span></div>}
             {order.paymentReference && <div className="info-row"><span className="k">Reference</span><span className="v">{order.paymentReference}</span></div>}
+            {refundedTotal > 0 && (
+              <>
+                <div className="info-row"><span className="k">Refunded</span><span className="v" style={{ color: '#dc2626', fontWeight: 600 }}>−{formatINR(refundedTotal)}{fullyRefunded ? ' (full)' : ' (partial)'}</span></div>
+                {order.refundedAt && <div className="info-row"><span className="k">Refunded on</span><span className="v">{order.refundedAt}</span></div>}
+                {order.refundReason && <div className="info-row"><span className="k">Refund reason</span><span className="v">{order.refundReason}</span></div>}
+                {order.refundReference && <div className="info-row"><span className="k">Refund ref</span><span className="v">{order.refundReference}</span></div>}
+              </>
+            )}
             {isB2C && !paid && (
               <div className="small-muted" style={{ marginTop: 8 }}>
                 {awaitingConfirmation
@@ -731,6 +780,13 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
               <button className="btn btn-outline btn-sm" style={{ width: '100%', justifyContent: 'center' }} disabled={paid} onClick={() => setPaymentModal(true)}>
                 <Icon name="card" /> {paid ? 'Payment received' : 'Record Offline Payment'}
               </button>
+              {canRefund && (
+                <button className="btn btn-outline btn-sm" style={{ width: '100%', justifyContent: 'center', marginTop: 8, color: '#dc2626', borderColor: '#f3c2c2' }}
+                  onClick={() => { setRefundForm({ amount: Math.max(0, displayTotal - refundedTotal), reason: '', reference: '' }); setRefundModal(true); }}>
+                  <Icon name="refresh" /> {refundedTotal > 0 ? 'Issue Further Refund' : 'Issue Refund'}
+                </button>
+              )}
+              {fullyRefunded && <div className="small-muted" style={{ marginTop: 8, textAlign: 'center' }}>Fully refunded</div>}
             </div>
           </div>
 
@@ -898,6 +954,31 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
           </div>
           <div className="form-field"><label>Payment date</label><input type="date" value={payForm.date} onChange={(e) => setPayForm({ ...payForm, date: e.target.value })} /></div>
           <div className="form-field"><label>Reference number</label><input value={payForm.reference} onChange={(e) => setPayForm({ ...payForm, reference: e.target.value })} placeholder="Optional" /></div>
+        </div>
+      </Modal>
+
+      {/* Cancel order */}
+      <Modal open={cancelModal} title={`Cancel ${order.no}?`} confirmLabel="Cancel Order" onClose={() => setCancelModal(false)} onConfirm={cancelOrder}>
+        <div className="small-muted" style={{ marginBottom: 12 }}>
+          The order stops here — its status becomes <b>Cancelled</b> and the customer sees that in the Garm App (production won't proceed).
+          {everPaid ? ' Any money already collected is NOT refunded automatically — use “Issue Refund” on the Payment card after cancelling.' : ' No payment has been collected, so there is nothing to refund.'}
+        </div>
+        <div className="form-grid">
+          <div className="form-field full"><label>Reason (shown to the customer)</label>
+            <input value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="e.g. Customer requested cancellation / out of stock" />
+          </div>
+        </div>
+      </Modal>
+
+      {/* Issue refund */}
+      <Modal open={refundModal} title={`Refund ${order.no}`} confirmLabel="Record Refund" onClose={() => setRefundModal(false)} onConfirm={confirmRefund}>
+        <div className="small-muted" style={{ marginBottom: 12 }}>
+          Records a refund against this order (e.g. after a damage complaint). Paid: <b>{formatINR(displayTotal)}</b>{refundedTotal > 0 ? ` · already refunded ${formatINR(refundedTotal)}` : ''}. Max you can refund now: <b>{formatINR(Math.max(0, displayTotal - refundedTotal))}</b>. Process the actual money transfer in your bank/UPI/gateway; this logs it and updates the customer.
+        </div>
+        <div className="form-grid">
+          <div className="form-field"><label>Refund amount (₹)</label><input type="number" value={refundForm.amount} onChange={(e) => setRefundForm({ ...refundForm, amount: Number(e.target.value) })} /></div>
+          <div className="form-field"><label>Reference (optional)</label><input value={refundForm.reference} onChange={(e) => setRefundForm({ ...refundForm, reference: e.target.value })} placeholder="Bank/UPI txn id" /></div>
+          <div className="form-field full"><label>Reason (shown to the customer)</label><input value={refundForm.reason} onChange={(e) => setRefundForm({ ...refundForm, reason: e.target.value })} placeholder="e.g. Damaged goods — full refund" /></div>
         </div>
       </Modal>
     </div>

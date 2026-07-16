@@ -58,6 +58,12 @@ export interface Order {
   paymentDate?: string | null;
   paymentReference?: string | null;
   confirmedAt?: string | null;
+  cancelledAt?: string | null;
+  cancelReason?: string | null;
+  refundAmount?: number;
+  refundedAt?: string | null;
+  refundReason?: string | null;
+  refundReference?: string | null;
   assignedEmployee?: string | null;
   trackingCourier?: string | null;
   trackingNumber?: string | null;

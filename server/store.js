@@ -211,6 +211,12 @@ function toAdminOrder(o) {
     paymentDate: o.paymentDate ? new Date(o.paymentDate).toISOString().slice(0, 10) : null,
     paymentReference: o.paymentReference ?? null,
     confirmedAt: o.confirmedAt ? new Date(o.confirmedAt).toISOString().slice(0, 10) : null,
+    cancelledAt: o.cancelledAt ? new Date(o.cancelledAt).toISOString().slice(0, 10) : null,
+    cancelReason: o.cancelReason ?? null,
+    refundAmount: o.refundAmount ?? 0,
+    refundedAt: o.refundedAt ? new Date(o.refundedAt).toISOString().slice(0, 10) : null,
+    refundReason: o.refundReason ?? null,
+    refundReference: o.refundReference ?? null,
     assignedEmployee: o.assignedEmployee ?? null,
     rating: o.rating ?? null,
     ratingFeedback: o.ratingFeedback ?? null,
@@ -812,6 +818,30 @@ export const db = {
             return s2;
           });
           order.markModified('trackSteps');
+        }
+      }
+    }
+    // ── Cancellation: stamp the reason + time. Status already set above. ──
+    if (patch.status === 'CANCELLED') {
+      order.cancelledAt = order.cancelledAt || new Date();
+      if (patch.cancelReason !== undefined) order.cancelReason = patch.cancelReason || undefined;
+    }
+    // ── Refund (admin-issued, e.g. after a damage complaint). Accumulates so a
+    // partial refund can be topped up to a full one; sets the payment status and
+    // notes it on the customer's tracker. ──
+    if (patch.refund && typeof patch.refund === 'object') {
+      const amt = Math.max(0, Math.round(Number(patch.refund.amount) || 0));
+      if (amt > 0) {
+        order.refundAmount = (order.refundAmount || 0) + amt;
+        order.refundedAt = new Date();
+        if (patch.refund.reason) order.refundReason = patch.refund.reason;
+        if (patch.refund.reference) order.refundReference = patch.refund.reference;
+        const paidTotal = order.total || order.quoteAmount || 0;
+        order.paymentStatus = paidTotal > 0 && order.refundAmount >= paidTotal ? 'refunded' : 'partial_refund';
+        if (Array.isArray(order.trackSteps)) {
+          const when = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+          const payStep = order.trackSteps.find((s) => (s.label || '').toLowerCase().includes('payment'));
+          if (payStep) { payStep.sub = `Refund issued · ₹${order.refundAmount.toLocaleString('en-IN')} · ${when}`; order.markModified('trackSteps'); }
         }
       }
     }

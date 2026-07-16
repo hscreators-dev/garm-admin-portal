@@ -92,10 +92,18 @@ const OrderSchema = new mongoose.Schema(
     serviceFee: { type: Number, default: 0 },
     quoteApprovedAt: Date,
     confirmedAt: Date,
-    paymentStatus: { type: String, enum: ['unpaid', 'partial', 'paid'], default: 'unpaid' },
+    paymentStatus: { type: String, enum: ['unpaid', 'partial', 'paid', 'refunded', 'partial_refund'], default: 'unpaid' },
     paymentMode: String,
     paymentDate: Date,
     paymentReference: String,
+
+    // ── Cancellation & refund (admin-issued) ──
+    cancelledAt: Date,
+    cancelReason: String,
+    refundAmount: { type: Number, default: 0 }, // total refunded so far (₹)
+    refundedAt: Date,
+    refundReason: String,
+    refundReference: String,
 
     coordinatorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     notes: String,
