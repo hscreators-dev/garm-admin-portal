@@ -260,6 +260,9 @@ export const api = {
     orders: number; spend: number; lastOrderAt: string | null;
   }[] }>('/api/customers'),
 
+  // Orders placed by one customer (drill-in on the Customer Log page).
+  getCustomerOrders: (id: string) => http<{ orders: Order[] }>(`/api/customers/${id}/orders`),
+
   // Customer Log — every Garm App sign-in (new vs returning) + summary counts.
   getCustomerLog: () => http<{
     events: { id: string; userId: string; name: string; phone: string; email: string; mode: 'phone' | 'email'; isNewUser: boolean; at: string }[];

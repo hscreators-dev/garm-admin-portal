@@ -10,7 +10,6 @@ import Layout from './layout/Layout'
 import Dashboard from './pages/Dashboard'
 import Catalog from './pages/Catalog'
 import Orders from './pages/Orders'
-import Customers from './pages/Customers';
 import CustomerLog from './pages/CustomerLog';
 import Manufacturers from './pages/Manufacturers'
 import QC from './pages/QC'
@@ -36,7 +35,7 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="catalog" element={<Catalog />} />
                 <Route path="orders" element={<Orders />} />
-                <Route path="customers" element={<Customers />} />
+                <Route path="customers" element={<Navigate to="/customer-log" replace />} />
                 <Route path="customer-log" element={<CustomerLog />} />
                 <Route path="manufacturers" element={<Manufacturers />} />
                 <Route path="qc" element={<QC />} />

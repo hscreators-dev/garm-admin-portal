@@ -574,6 +574,10 @@ const routes = [
   ['GET', /^\/api\/customers$/, async (_p, _b, res) => {
     send(res, 200, { customers: await db.listAppCustomers() });
   }],
+  // Orders placed by ONE customer — powers the drill-in on the Customer Log page.
+  ['GET', /^\/api\/customers\/(?<id>[a-f0-9]{24})\/orders$/, async (p, _b, res) => {
+    send(res, 200, { orders: await db.listOrdersByCustomer(p.id) });
+  }],
 
   // Users — Super-Admin-provisioned identities driving role-based access control.
   // Signing in now goes through /api/auth/admin/* (OTP-verified) below, not
