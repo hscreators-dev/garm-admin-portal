@@ -13,7 +13,7 @@
 // placed, a category changes, a product is edited, etc.
 
 import { createServer } from 'http';
-import { db, resetToSeed } from './store.js';
+import { db, resetToSeed, hydrateStoreFromMongo } from './store.js';
 import { rateLimit } from './security.js';
 import { connectMongo, MongoTicket, MongoLoginEvent } from './mongo.js';
 import { ACCESSORY_SPECS_BY_CATEGORY } from './seed.js';
@@ -1003,16 +1003,24 @@ const server = createServer(async (req, res) => {
 // traffic, but don't let a down/unreachable Mongo crash the whole process:
 // catalog/settings/employees/auth all still work off the local file store
 // either way, and Orders routes will just error clearly until Mongo is back.
-connectMongo().catch(() => {
-  console.error('[mongo] Starting anyway — every /api/orders and /api/garm/orders|quotes|track route will fail until MONGODB_URI is reachable.');
-});
-
-// Let the deployer sign in as Super Admin with their OWN email (so the OTP goes
-// to a real inbox in production). Set SUPER_ADMIN_EMAIL in the environment.
-if (process.env.SUPER_ADMIN_EMAIL) {
-  const u = db.ensureSuperAdmin(process.env.SUPER_ADMIN_EMAIL);
-  if (u) console.log(`[admin] Super Admin ready: ${u.email}`);
+// Let the deployer sign in as Super Admin with their OWN email. Run AFTER the
+// store is hydrated from Mongo so it isn't overwritten by the restore.
+function ensureSuperAdmin() {
+  if (process.env.SUPER_ADMIN_EMAIL) {
+    const u = db.ensureSuperAdmin(process.env.SUPER_ADMIN_EMAIL);
+    if (u) console.log(`[admin] Super Admin ready: ${u.email}`);
+  }
 }
+
+connectMongo()
+  // Restore the durable catalog/settings from MongoDB so edits survive deploys
+  // (Render's free-tier filesystem is wiped each deploy).
+  .then(() => hydrateStoreFromMongo())
+  .then(ensureSuperAdmin)
+  .catch((e) => {
+    console.error('[mongo] Starting anyway — orders/quotes/track fail and catalog edits will NOT persist across deploys until MONGODB_URI is reachable.', e?.message || '');
+    ensureSuperAdmin();
+  });
 
 server.listen(PORT, () => {
   console.log(`Garm Admin backend listening on http://localhost:${PORT}`);

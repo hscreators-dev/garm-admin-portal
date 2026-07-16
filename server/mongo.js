@@ -209,6 +209,17 @@ export const MongoUser = mongoose.models.User || mongoose.model('User', UserSche
 export const MongoTicket = mongoose.models.SupportTicket || mongoose.model('SupportTicket', SupportTicketSchema);
 export const MongoLoginEvent = mongoose.models.LoginEvent || mongoose.model('LoginEvent', LoginEventSchema);
 
+// Durable snapshot of the admin file-store (catalog, products, settings,
+// employees…). Render's free tier has an EPHEMERAL filesystem with no
+// persistent disk, so server/db.json is wiped on every deploy — which reset all
+// catalog/price edits. Mirroring the store here (the same DB the app uses) makes
+// those edits survive deploys. Single document, keyed 'store'.
+const AdminStoreSchema = new mongoose.Schema(
+  { key: { type: String, unique: true }, blob: mongoose.Schema.Types.Mixed, updatedAt: Date },
+  { collection: 'adminstore', minimize: false }
+);
+export const MongoAdminStore = mongoose.models.AdminStore || mongoose.model('AdminStore', AdminStoreSchema);
+
 let connectPromise = null;
 let connected = false;
 export function isMongoConnected() { return connected; }

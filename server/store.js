@@ -10,7 +10,7 @@ import { fileURLToPath } from 'url';
 import { buildSeed } from './seed.js';
 import { buildInvoicePdf } from './invoice.js';
 import { encryptFields, decryptFields, hashSecret, timingSafeEqualStr } from './security.js';
-import { MongoOrder, MongoQuote, MongoUser, getOrCreateWalkInUser, nextOrderSeq } from './mongo.js';
+import { MongoOrder, MongoQuote, MongoUser, getOrCreateWalkInUser, nextOrderSeq, MongoAdminStore } from './mongo.js';
 
 function randomToken() {
   return crypto.randomBytes(24).toString('hex');
@@ -434,8 +434,47 @@ function migrate() {
   if (changed) persist();
 }
 
+// ─── Durable persistence (MongoDB-backed) ────────────────────────────────────
+// The local db.json is a fast runtime cache only — on Render's free tier it's
+// wiped every deploy. So we ALSO mirror the store into MongoDB (debounced) and,
+// on boot, restore from Mongo so catalog/price edits survive deploys.
+let mongoReady = false;        // true once we've hydrated from (or seeded) Mongo
+let mongoBackupTimer = null;
+
+function scheduleMongoBackup() {
+  if (!mongoReady || mongoBackupTimer) return; // nothing to do / already queued
+  mongoBackupTimer = setTimeout(async () => {
+    mongoBackupTimer = null;
+    try {
+      await MongoAdminStore.updateOne({ key: 'store' }, { $set: { blob: toDiskFormat(data), updatedAt: new Date() } }, { upsert: true });
+    } catch (e) { console.error('[store] MongoDB backup failed:', e.message); }
+  }, 1500);
+}
+
 function persist() {
-  fs.writeFileSync(DB_FILE, JSON.stringify(toDiskFormat(data), null, 2));
+  try { fs.writeFileSync(DB_FILE, JSON.stringify(toDiskFormat(data), null, 2)); } catch { /* ephemeral FS — Mongo is the durable copy */ }
+  scheduleMongoBackup();
+}
+
+// Called after MongoDB connects. Restores the durable catalog/settings snapshot
+// so edits survive deploys; if Mongo has none yet, seeds it from what we have.
+export async function hydrateStoreFromMongo() {
+  try {
+    const doc = await MongoAdminStore.findOne({ key: 'store' }).lean();
+    if (doc && doc.blob && typeof doc.blob === 'object') {
+      data = fromDiskFormat(doc.blob);
+      migrate();
+      try { fs.writeFileSync(DB_FILE, JSON.stringify(toDiskFormat(data), null, 2)); } catch { /* ignore */ }
+      console.log('[store] restored catalog/settings from MongoDB — edits survive deploys.');
+    } else {
+      await MongoAdminStore.updateOne({ key: 'store' }, { $set: { blob: toDiskFormat(data), updatedAt: new Date() } }, { upsert: true });
+      console.log('[store] seeded the MongoDB durable store from the current catalog.');
+    }
+  } catch (e) {
+    console.error('[store] MongoDB hydrate failed — using local/seed data:', e.message);
+  } finally {
+    mongoReady = true; // from now on, every persist() also backs up to Mongo
+  }
 }
 
 load();
