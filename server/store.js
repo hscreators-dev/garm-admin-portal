@@ -425,6 +425,23 @@ function normalizeSpecFields(fields) {
   })).filter((f) => f.label && f.options.length > 0).slice(0, 12);
 }
 
+// Per-option ₹ price adjustments (fabric/gsm/weave/style → { label: delta }).
+// Coerces to integers and drops non-numeric/zero entries.
+function normalizeOptionPrices(op) {
+  const out = { style: {}, fabric: {}, gsm: {}, weave: {} };
+  if (!op || typeof op !== 'object') return out;
+  for (const bucket of ['style', 'fabric', 'gsm', 'weave']) {
+    const m = op[bucket];
+    if (m && typeof m === 'object') {
+      for (const [k, v] of Object.entries(m)) {
+        const n = Math.round(Number(v));
+        if (Number.isFinite(n) && n !== 0) out[bucket][String(k)] = n;
+      }
+    }
+  }
+  return out;
+}
+
 function normalizeColors(colors) {
   if (!Array.isArray(colors)) return [];
   return colors.map((c) => {
@@ -502,6 +519,7 @@ export const db = {
       specFields: normalizeSpecFields(input.specFields),
       styles: Array.isArray(input.styles) ? input.styles.map(String).filter(Boolean) : [],
       weaveOptions: Array.isArray(input.weaveOptions) ? input.weaveOptions.map(String).filter(Boolean) : [],
+      optionPrices: normalizeOptionPrices(input.optionPrices),
       moq: Number(input.moq) || 0,
       status: input.status || 'ACTIVE',
       image: input.image || null,
@@ -535,6 +553,7 @@ export const db = {
       specFields: input.specFields !== undefined ? normalizeSpecFields(input.specFields) : (product.specFields ?? []),
       styles: input.styles !== undefined ? input.styles.map(String).filter(Boolean) : (product.styles ?? []),
       weaveOptions: input.weaveOptions !== undefined ? input.weaveOptions.map(String).filter(Boolean) : (product.weaveOptions ?? []),
+      optionPrices: input.optionPrices !== undefined ? normalizeOptionPrices(input.optionPrices) : (product.optionPrices ?? normalizeOptionPrices()),
       moq: input.moq !== undefined ? Number(input.moq) : product.moq,
       status: input.status ?? product.status,
       image: input.image !== undefined ? input.image : product.image,

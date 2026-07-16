@@ -39,6 +39,25 @@ function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
+// Per-option price adjustments (₹ added to / subtracted from the base price when
+// the customer picks that fabric / GSM / weave / style in the Garm App). Keyed
+// by the exact option label. Missing/0 = no change. This is what lets the admin
+// price each fabric, GSM, weave and style individually.
+export interface OptionPrices {
+  style: Record<string, number>;
+  fabric: Record<string, number>;
+  gsm: Record<string, number>;
+  weave: Record<string, number>;
+}
+const emptyOptionPrices = (): OptionPrices => ({ style: {}, fabric: {}, gsm: {}, weave: {} });
+// Keep only the price deltas for options that still exist (and are non-zero),
+// so removed options don't leave orphan prices behind.
+function pickDeltas(deltas: Record<string, number>, options: string[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const opt of options) { const d = deltas[opt]; if (d) out[opt] = Math.round(d); }
+  return out;
+}
+
 interface ProdForm {
   name: string; categoryId: number; productType: ProductType; inStock: boolean; price: number;
   sizes: string; colors: ProductColor[]; specFields: SpecFieldDraft[]; moq: number;
@@ -46,6 +65,8 @@ interface ProdForm {
   // Garment configurator lists — the SAME lists the Garm App shows in its
   // Style and Material steps. Edited as chips (add/remove), not typed text.
   styles: string[]; fabricOptions: string[]; gsmOptions: string[]; weaveOptions: string[];
+  // Per-option ₹ price adjustments (see OptionPrices).
+  optionPrices: OptionPrices;
 }
 
 // Chip-style list editor: existing options as removable chips + an input to
@@ -82,6 +103,58 @@ function ListEditor({ value, onChange, placeholder }: { value: string[]; onChang
   );
 }
 
+// Like ListEditor, but each option also carries a ₹ price adjustment (delta
+// from the product's base price). Used for fabrics / GSM / weaves / styles so
+// the admin can price each option. `prices` maps option label → ₹ delta.
+function PricedListEditor({ value, prices, onChange, onPrices, placeholder, base }:
+  { value: string[]; prices: Record<string, number>; onChange: (v: string[]) => void;
+    onPrices: (p: Record<string, number>) => void; placeholder: string; base: number }) {
+  const [draft, setDraft] = useState('');
+  function add() {
+    const v = draft.trim();
+    if (!v) return;
+    if (value.some((x) => x.toLowerCase() === v.toLowerCase())) { setDraft(''); return; }
+    onChange([...value, v]);
+    setDraft('');
+  }
+  function remove(i: number) {
+    const label = value[i];
+    onChange(value.filter((_, x) => x !== i));
+    if (label in prices) { const next = { ...prices }; delete next[label]; onPrices(next); }
+  }
+  function setDelta(label: string, delta: number) {
+    onPrices({ ...prices, [label]: delta });
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {value.map((v, i) => {
+        const delta = prices[v] ?? 0;
+        const finalPrice = Math.max(0, base + delta);
+        return (
+          <div key={`${v}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span className="tag" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', minWidth: 120 }}>
+              {v}
+              <button type="button" title={`Remove ${v}`} onClick={() => remove(i)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, fontSize: 13, color: '#6b7280' }}>×</button>
+            </span>
+            <span className="small-muted" style={{ fontSize: 12 }}>base ₹{base}</span>
+            <span className="small-muted" style={{ fontSize: 12 }}>+/− ₹</span>
+            <input type="number" value={delta} onChange={(e) => setDelta(v, Math.round(Number(e.target.value) || 0))}
+              style={{ width: 74 }} title="₹ added to (or subtracted from) the base price for this option" />
+            <span style={{ fontSize: 12, fontWeight: 600 }}>= ₹{finalPrice}/pc</span>
+          </div>
+        );
+      })}
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input value={draft} placeholder={placeholder} style={{ flex: 1 }}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }} />
+        <button type="button" className="btn btn-outline btn-sm" onClick={add} disabled={!draft.trim()}>+ Add</button>
+      </div>
+    </div>
+  );
+}
+
 // New-garment starting points — the Garm App's own defaults (its t-shirt
 // fabric list, its weave list, its 8-colour palette). All editable per product.
 const GARMENT_DEFAULT_FABRICS = ['Soft 100% Cotton', 'Cotton-Poly Blend', 'Dri-fit Polyester', 'Slub Cotton', 'Bamboo Blend'];
@@ -101,6 +174,7 @@ function emptyProdForm(categoryId: number): ProdForm {
     status: 'ACTIVE', image: null, description: '',
     styles: [], fabricOptions: [...GARMENT_DEFAULT_FABRICS],
     gsmOptions: [...GARMENT_DEFAULT_GSM], weaveOptions: [...GARMENT_DEFAULT_WEAVES],
+    optionPrices: emptyOptionPrices(),
   };
 }
 
@@ -251,6 +325,12 @@ export default function Catalog() {
       fabricOptions: [...(p.fabricOptions || [])],
       gsmOptions: [...(p.gsmOptions || [])],
       weaveOptions: [...(p.weaveOptions || [])],
+      optionPrices: {
+        style:  { ...(p.optionPrices?.style  || {}) },
+        fabric: { ...(p.optionPrices?.fabric || {}) },
+        gsm:    { ...(p.optionPrices?.gsm    || {}) },
+        weave:  { ...(p.optionPrices?.weave  || {}) },
+      },
     });
     setProdModal({ open: true, editing: p });
   }
@@ -284,6 +364,13 @@ export default function Catalog() {
       fabricOptions: isGarment ? prodForm.fabricOptions : [],
       gsmOptions: isGarment ? prodForm.gsmOptions : [],
       weaveOptions: isGarment ? prodForm.weaveOptions : [],
+      // Per-option ₹ price adjustments — only kept for options that still exist.
+      optionPrices: isGarment ? {
+        style:  pickDeltas(prodForm.optionPrices.style,  prodForm.styles),
+        fabric: pickDeltas(prodForm.optionPrices.fabric, prodForm.fabricOptions),
+        gsm:    pickDeltas(prodForm.optionPrices.gsm,    prodForm.gsmOptions),
+        weave:  pickDeltas(prodForm.optionPrices.weave,  prodForm.weaveOptions),
+      } : emptyOptionPrices(),
     };
     try {
       if (prodModal.editing) {
@@ -604,17 +691,23 @@ export default function Catalog() {
                 your version immediately; empty a list to fall back to the app's built-in one. Which sections
                 customers see (Style / Materials / Sizes) is controlled in <b>Settings → Order Form</b>.
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div className="small-muted" style={{ marginBottom: 8 }}>
+                Each fabric, GSM, weave and style can carry its own price \u2014 enter the \u20b9 amount to add to (or
+                subtract from) the base price when the customer picks it. The Garm App shows the final \u20b9/pc live.
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {([
-                  ['Styles', 'styles', 'Add a style (e.g. Round neck)'],
-                  ['Fabrics', 'fabricOptions', 'Add a fabric (e.g. Soft 100% Cotton)'],
-                  ['GSM options', 'gsmOptions', 'Add a GSM option (e.g. 180\u2013200 GSM (standard))'],
-                  ['Weaves', 'weaveOptions', 'Add a weave (e.g. Twill)'],
-                ] as const).map(([lbl, key, ph]) => (
+                  ['Styles', 'styles', 'style', 'Add a style (e.g. Round neck)'],
+                  ['Fabrics', 'fabricOptions', 'fabric', 'Add a fabric (e.g. Soft 100% Cotton)'],
+                  ['GSM options', 'gsmOptions', 'gsm', 'Add a GSM option (e.g. 180\u2013200 GSM (standard))'],
+                  ['Weaves', 'weaveOptions', 'weave', 'Add a weave (e.g. Twill)'],
+                ] as const).map(([lbl, key, priceKey, ph]) => (
                   <div key={key}>
                     <div className="small-muted" style={{ fontWeight: 600, marginBottom: 4 }}>{lbl}</div>
-                    <ListEditor value={prodForm[key]} placeholder={ph}
-                      onChange={(v) => setProdForm((f) => ({ ...f, [key]: v }))} />
+                    <PricedListEditor
+                      value={prodForm[key]} prices={prodForm.optionPrices[priceKey]} placeholder={ph} base={prodForm.price}
+                      onChange={(v) => setProdForm((f) => ({ ...f, [key]: v }))}
+                      onPrices={(p) => setProdForm((f) => ({ ...f, optionPrices: { ...f.optionPrices, [priceKey]: p } }))} />
                   </div>
                 ))}
               </div>

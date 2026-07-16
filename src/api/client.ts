@@ -69,6 +69,14 @@ export interface Product {
   // configurator (pre-filled from the app's built-in lists at seed time).
   styles?: string[];
   weaveOptions?: string[];
+  // Per-option ₹ price adjustments (delta from `price`) keyed by option label,
+  // so each fabric / GSM / weave / style can be priced individually.
+  optionPrices?: {
+    style?: Record<string, number>;
+    fabric?: Record<string, number>;
+    gsm?: Record<string, number>;
+    weave?: Record<string, number>;
+  };
   stitchingOptions: string[];
   packagingOptions: string[];
   allowsLogoUpload: boolean;
