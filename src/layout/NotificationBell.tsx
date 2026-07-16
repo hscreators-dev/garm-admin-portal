@@ -4,6 +4,31 @@ import Icon from '../components/Icon';
 import { api, type SupportTicket } from '../api/client';
 import { onLiveEvent } from '../api/liveBus';
 import { useOrders } from '../api/useOrders';
+import { useToast } from '../components/Toast';
+
+// A short two-note chime, synthesised with the Web Audio API so no audio file is
+// needed. Browsers block audio until the user has interacted with the page — the
+// admin will have clicked around, so this works; if not, it fails silently.
+function playChime() {
+  try {
+    const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new AC();
+    const beep = (freq: number, at: number) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = 'sine';
+      o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, ctx.currentTime + at);
+      g.gain.exponentialRampToValueAtTime(0.22, ctx.currentTime + at + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + at + 0.35);
+      o.start(ctx.currentTime + at);
+      o.stop(ctx.currentTime + at + 0.4);
+    };
+    beep(880, 0);
+    beep(1174.7, 0.16);
+  } catch { /* audio blocked / unsupported — ignore */ }
+}
 
 // Real notification feed for the admin topbar: things that need someone's
 // attention right now — new customer orders awaiting confirmation, orders
@@ -12,6 +37,7 @@ import { useOrders } from '../api/useOrders';
 export default function NotificationBell() {
   const navigate = useNavigate();
   const { orders } = useOrders();
+  const showToast = useToast();
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -52,6 +78,21 @@ export default function NotificationBell() {
   }, [orders, tickets]);
 
   const count = items.length;
+
+  // New-order alert: when a NEW customer order appears (poll or SSE), chime and
+  // toast so the admin notices immediately — not just a silent badge.
+  const seenNewOrders = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const newOrderKeys = new Set(items.filter((i) => i.key.startsWith('o-new-')).map((i) => i.key));
+    if (seenNewOrders.current === null) { seenNewOrders.current = newOrderKeys; return; } // skip first render
+    const added = [...newOrderKeys].filter((k) => !seenNewOrders.current!.has(k));
+    if (added.length > 0) {
+      playChime();
+      const first = items.find((i) => i.key === added[0]);
+      showToast(added.length === 1 && first ? `${first.title} — ${first.sub}` : `${added.length} new orders need confirmation`);
+    }
+    seenNewOrders.current = newOrderKeys;
+  }, [items, showToast]);
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>

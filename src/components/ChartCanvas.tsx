@@ -16,5 +16,12 @@ export default function ChartCanvas<TType extends ChartType = ChartType>({ confi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(config)]);
 
-  return <canvas ref={canvasRef} height={height || 90}></canvas>;
+  // A FIXED-HEIGHT wrapper is essential: charts use maintainAspectRatio:false +
+  // responsive:true, so Chart.js sizes the canvas to its parent. Without a bounded
+  // parent it re-measures and grows on every resize ("the graph goes on forever").
+  return (
+    <div style={{ position: 'relative', height: height || 90, width: '100%' }}>
+      <canvas ref={canvasRef}></canvas>
+    </div>
+  );
 }

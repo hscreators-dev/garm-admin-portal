@@ -8,7 +8,7 @@ import { useManufacturers } from '../api/useManufacturers';
 import { useOrders } from '../api/useOrders';
 import { onLiveEvent } from '../api/liveBus';
 import { useRole } from '../components/RoleContext';
-import { activityFeedData, alertsData, formatINR, type Order } from '../data/mockData';
+import { formatINR, type Order } from '../data/mockData';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -28,6 +28,44 @@ export default function Dashboard() {
 
   // Real KPIs from the live order book, scoped by customer type.
   const scoped = useMemo(() => orders.filter((o) => audience === 'ALL' || o.type === audience), [orders, audience]);
+
+  // Alerts — derived from the real order book (things needing attention now).
+  const realAlerts = useMemo(() => {
+    const paidOf = (o: Order) => o.paymentStatus === 'paid' || o.pay === 'COMPLETED';
+    const a: { tone: string; icon: string; text: string }[] = [];
+    const n = (s: string) => orders.filter((o) => o.status === s).length;
+    if (n('NEW')) a.push({ tone: 'info', icon: 'package', text: `${n('NEW')} new order${n('NEW') > 1 ? 's' : ''} awaiting your confirmation.` });
+    const payWait = orders.filter((o) => o.status === 'CONFIRMED' && !paidOf(o)).length;
+    if (payWait) a.push({ tone: 'warning', icon: 'card', text: `${payWait} order${payWait > 1 ? 's' : ''} waiting for customer payment.` });
+    if (n('PAID')) a.push({ tone: 'info', icon: 'factory', text: `${n('PAID')} paid order${n('PAID') > 1 ? 's' : ''} ready to assign to a manufacturer.` });
+    if (n('QC_READY')) a.push({ tone: 'warning', icon: 'shieldSm', text: `${n('QC_READY')} order${n('QC_READY') > 1 ? 's' : ''} awaiting quality control.` });
+    const failed = orders.filter((o) => o.qc === 'FAILED' || o.qc === 'REWORK').length;
+    if (failed) a.push({ tone: 'danger', icon: 'xCircle', text: `${failed} order${failed > 1 ? 's' : ''} failed QC / need rework.` });
+    if (n('SHIPPED')) a.push({ tone: 'purple', icon: 'package', text: `${n('SHIPPED')} order${n('SHIPPED') > 1 ? 's' : ''} in transit, awaiting delivery confirmation.` });
+    if (a.length === 0) a.push({ tone: 'success', icon: 'check', text: 'All clear — nothing needs your attention right now.' });
+    return a.slice(0, 6);
+  }, [orders]);
+
+  // Recent activity — the latest real orders + their current stage.
+  const recentActivity = useMemo(() => {
+    const label = (o: Order): { icon: string; tone: string; text: string } => {
+      switch (o.status) {
+        case 'NEW':         return { icon: 'package', tone: 'info', text: `New order ${o.no} from ${o.cust}` };
+        case 'CONFIRMED':   return { icon: 'checkCircle', tone: 'success', text: `Order ${o.no} confirmed` };
+        case 'PAID':        return { icon: 'card', tone: 'success', text: `Payment received — ${o.no}` };
+        case 'ASSIGNED':    return { icon: 'factory', tone: 'purple', text: `${o.no} assigned to ${o.mfr}` };
+        case 'IN_PROGRESS': return { icon: 'factory', tone: 'warning', text: `${o.no} in production` };
+        case 'QC_READY':    return { icon: 'shieldSm', tone: 'warning', text: `${o.no} sent to quality control` };
+        case 'QC_APPROVED': return { icon: 'shield', tone: 'success', text: `${o.no} passed QC` };
+        case 'INVOICED':    return { icon: 'file', tone: 'info', text: `${o.no} invoiced` };
+        case 'SHIPPED':     return { icon: 'package', tone: 'purple', text: `${o.no} shipped` };
+        case 'DELIVERED':   return { icon: 'checkCircle', tone: 'success', text: `${o.no} delivered` };
+        case 'CANCELLED':   return { icon: 'xCircle', tone: 'danger', text: `${o.no} cancelled` };
+        default:            return { icon: 'package', tone: 'slate', text: `${o.no} updated` };
+      }
+    };
+    return [...orders].sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 8).map((o) => ({ ...label(o), time: o.date }));
+  }, [orders]);
   const amount = (o: Order) => o.total || o.quoteAmount || 0;
   const active = scoped.filter((o) => o.status !== 'CANCELLED');
   const kpis = useMemo(() => {
@@ -173,7 +211,7 @@ export default function Dashboard() {
         <div className="card">
           <div className="card-head"><div><h3>Alerts</h3><div className="sub">Needs your attention</div></div></div>
           <div className="card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {alertsData.map((a, i) => (
+            {realAlerts.map((a, i) => (
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }} key={i}>
                 <div className="kpi-icon" style={{ width: 36, height: 36, background: `var(--${a.tone}-bg, var(--slate-bg))`, color: `var(--${a.tone}, var(--slate))`, flex: 'none' }}>
                   <Icon name={a.icon} />
@@ -188,8 +226,9 @@ export default function Dashboard() {
       <div className="card">
         <div className="card-head"><div><h3>Recent Activity</h3><div className="sub">Last actions across the portal</div></div></div>
         <div className="card-pad" style={{ display: 'flex', flexDirection: 'column' }}>
-          {activityFeedData.map((a, i) => (
-            <div style={{ display: 'flex', gap: 12, padding: '11px 0', borderBottom: i < activityFeedData.length - 1 ? '1px solid #f1f3f7' : 'none' }} key={i}>
+          {recentActivity.length === 0 && <div className="small-muted" style={{ padding: 12 }}>No orders yet.</div>}
+          {recentActivity.map((a, i) => (
+            <div style={{ display: 'flex', gap: 12, padding: '11px 0', borderBottom: i < recentActivity.length - 1 ? '1px solid #f1f3f7' : 'none' }} key={i}>
               <div className="kpi-icon" style={{ width: 32, height: 32, background: `var(--${a.tone}-bg)`, color: `var(--${a.tone})`, flex: 'none' }}>
                 <Icon name={a.icon} />
               </div>

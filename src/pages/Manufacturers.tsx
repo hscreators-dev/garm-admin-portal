@@ -6,7 +6,7 @@ import ChartCanvas from '../components/ChartCanvas';
 import { useToast } from '../components/Toast';
 import { useManufacturers } from '../api/useManufacturers';
 import { useOrders } from '../api/useOrders';
-import { genTrend, type Manufacturer } from '../data/mockData';
+import { genTrend, formatINR, type Manufacturer } from '../data/mockData';
 
 export default function Manufacturers() {
   const { manufacturers, loading } = useManufacturers();
@@ -78,6 +78,11 @@ function MfrDetail({ mfr, onBack }: { mfr: Manufacturer; onBack: () => void }) {
   const { orders } = useOrders();
   const mfrOrders = orders.filter((o) => o.mfr === mfr.name);
   const recent = mfrOrders.slice(0, 6);
+  // Real manufacturer-payment totals from the orders assigned to this maker.
+  const mfrBilled = mfrOrders.reduce((s, o) => s + (o.mfrBillAmount || 0), 0);
+  const mfrPaid = mfrOrders.reduce((s, o) => s + (o.mfrPaidAmount || 0), 0);
+  const mfrOutstanding = Math.max(0, mfrBilled - mfrPaid);
+  const paymentRows = mfrOrders.filter((o) => (o.mfrBillAmount || 0) > 0 || (o.mfrPaidAmount || 0) > 0).slice(0, 8);
   const [editModal, setEditModal] = useState(false);
   const [showAllOrders, setShowAllOrders] = useState(false);
   const [form, setForm] = useState({ name: mfr.name, city: mfr.city, cap: mfr.cap, lead: mfr.lead, status: mfr.status });
@@ -156,10 +161,19 @@ function MfrDetail({ mfr, onBack }: { mfr: Manufacturer; onBack: () => void }) {
             <div className="info-row"><span className="k">Payment terms</span><span className="v">50% advance</span></div>
           </div>
           <div className="card card-pad">
-            <h3 style={{ margin: '0 0 10px', fontSize: '13.5px' }}>Payment History</h3>
-            <div className="info-row"><span className="k">INV-0392 · Jun 28</span><span className="v"><span className="badge tone-success">PAID</span></span></div>
-            <div className="info-row"><span className="k">INV-0381 · Jun 14</span><span className="v"><span className="badge tone-success">PAID</span></span></div>
-            <div className="info-row"><span className="k">INV-0370 · May 30</span><span className="v"><span className="badge tone-warning">PARTIAL</span></span></div>
+            <h3 style={{ margin: '0 0 10px', fontSize: '13.5px' }}>Manufacturer Payments</h3>
+            <div className="info-row"><span className="k">Total billed</span><span className="v">{formatINR(mfrBilled)}</span></div>
+            <div className="info-row"><span className="k">Total paid</span><span className="v" style={{ color: '#047857', fontWeight: 600 }}>{formatINR(mfrPaid)}</span></div>
+            <div className="info-row"><span className="k">Outstanding</span><span className="v" style={{ color: mfrOutstanding > 0 ? '#dc2626' : 'inherit', fontWeight: 600 }}>{formatINR(mfrOutstanding)}</span></div>
+            <hr className="sep" style={{ margin: '8px 0' }} />
+            {paymentRows.length === 0 ? (
+              <div className="small-muted" style={{ fontSize: 12 }}>No bills recorded yet. Open an order assigned to this manufacturer → Manufacturer Payment to set the bill and record payments.</div>
+            ) : paymentRows.map((o) => (
+              <div className="info-row" key={o.id}>
+                <span className="k">{o.no}{o.mfrBillAmount ? ` · ${formatINR(o.mfrPaidAmount || 0)}/${formatINR(o.mfrBillAmount)}` : ''}</span>
+                <span className="v"><Badge status={o.mfrPayStatus || 'PENDING'} /></span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
