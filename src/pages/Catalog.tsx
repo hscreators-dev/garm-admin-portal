@@ -339,9 +339,14 @@ export default function Catalog() {
     const isGarment = prodForm.productType === 'GARMENT';
     const name = prodForm.name.trim();
     if (!name) { showToast('Give the product a name first'); return false; }
-    // Names must be unique per catalog — the Garm App matches products BY NAME
-    // for stock, colours and spec fields, so a duplicate would be ambiguous.
-    const dup = products.some((pr) => pr.name.trim().toLowerCase() === name.toLowerCase() && pr.id !== prodModal.editing?.id);
+    // Names must be unique per catalog — the Garm App matches products BY NAME.
+    // But only enforce this when CREATING or actually RENAMING: editing an
+    // existing product (e.g. adding a price to a fabric/style) with the SAME name
+    // must never be blocked — even if a stray duplicate of that name exists, the
+    // user is editing one specific product by id.
+    const editing = prodModal.editing;
+    const nameChanged = !editing || editing.name.trim().toLowerCase() !== name.toLowerCase();
+    const dup = nameChanged && products.some((pr) => pr.name.trim().toLowerCase() === name.toLowerCase() && pr.id !== editing?.id);
     if (dup) { showToast(`"${name}" already exists in the ${typeLabel(catalogType)} catalog — use a distinct name`); return false; }
     if (!prodForm.categoryId) { showToast('Pick a category for this product'); return false; }
     const payload = {
