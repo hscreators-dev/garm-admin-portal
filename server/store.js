@@ -463,8 +463,10 @@ export async function hydrateStoreFromMongo() {
     const doc = await MongoAdminStore.findOne({ key: 'store' }).lean();
     if (doc && doc.blob && typeof doc.blob === 'object') {
       data = fromDiskFormat(doc.blob);
-      migrate();
+      migrate(); // includes de-duplicating products that share a name
       try { fs.writeFileSync(DB_FILE, JSON.stringify(toDiskFormat(data), null, 2)); } catch { /* ignore */ }
+      // Write the migrated/de-duplicated snapshot back so the cleanup is durable.
+      await MongoAdminStore.updateOne({ key: 'store' }, { $set: { blob: toDiskFormat(data), updatedAt: new Date() } }, { upsert: true });
       console.log('[store] restored catalog/settings from MongoDB — edits survive deploys.');
     } else {
       await MongoAdminStore.updateOne({ key: 'store' }, { $set: { blob: toDiskFormat(data), updatedAt: new Date() } }, { upsert: true });
