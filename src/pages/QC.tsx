@@ -24,7 +24,9 @@ export default function QC() {
 }
 
 function QcQueue({ orders, onStart }: { orders: Order[]; onStart: (o: Order) => void }) {
-  const orgOrders = useMemo(() => orders.filter((o) => o.type === 'B2B'), [orders]);
+  // QC now covers BOTH Organisation and Individual orders — every production run
+  // is inspected after it returns from the manufacturer, before shipping.
+  const orgOrders = useMemo(() => orders, [orders]);
   const pending = orgOrders.filter((o) => o.status === 'QC_READY');
   const inspected = orgOrders.filter((o) => o.qc === 'PASSED' || o.qc === 'FAILED' || o.qc === 'REWORK');
   const passRate = inspected.length ? Math.round((inspected.filter((o) => o.qc === 'PASSED').length / inspected.length) * 100) : 0;

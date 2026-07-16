@@ -92,8 +92,11 @@ function deriveCustomerStatus(adminStatus, persona) {
     case 'PAID':            return isB2C ? 'Order confirmed' : 'Quality check';
     case 'ASSIGNED':        return isB2C ? 'In production' : 'Order placed';
     case 'IN_PROGRESS':     return 'In production';
+    // Individuals: QC is an INTERNAL step — the customer keeps seeing
+    // "In production" while we inspect, then it flips straight to Shipped.
+    // Organisations: QC is a visible tracker stage.
     case 'QC_READY':
-    case 'QC_APPROVED':     return 'Quality check';
+    case 'QC_APPROVED':     return isB2C ? 'In production' : 'Quality check';
     case 'INVOICED':        return 'Quality check'; // post-QC, pre-dispatch
     case 'SHIPPED':         return 'Shipped';
     case 'DELIVERED':       return 'Delivered';
@@ -217,6 +220,12 @@ function toAdminOrder(o) {
     refundedAt: o.refundedAt ? new Date(o.refundedAt).toISOString().slice(0, 10) : null,
     refundReason: o.refundReason ?? null,
     refundReference: o.refundReference ?? null,
+    mfrBillAmount: o.mfrBillAmount ?? 0,
+    mfrPaidAmount: o.mfrPaidAmount ?? 0,
+    mfrPayStatus: o.mfrPayStatus ?? 'PENDING',
+    mfrPaidAt: o.mfrPaidAt ? new Date(o.mfrPaidAt).toISOString().slice(0, 10) : null,
+    mfrPayMethod: o.mfrPayMethod ?? null,
+    mfrPayReference: o.mfrPayReference ?? null,
     assignedEmployee: o.assignedEmployee ?? null,
     rating: o.rating ?? null,
     ratingFeedback: o.ratingFeedback ?? null,
@@ -844,6 +853,20 @@ export const db = {
           if (payStep) { payStep.sub = `Refund issued · ₹${order.refundAmount.toLocaleString('en-IN')} · ${when}`; order.markModified('trackSteps'); }
         }
       }
+    }
+    // ── Manufacturer payment (admin → manufacturer, for this production run). ──
+    if (patch.mfrPayment && typeof patch.mfrPayment === 'object') {
+      const mp = patch.mfrPayment;
+      if (mp.bill !== undefined) order.mfrBillAmount = Math.max(0, Math.round(Number(mp.bill) || 0));
+      const amt = Math.max(0, Math.round(Number(mp.amount) || 0));
+      if (amt > 0) {
+        order.mfrPaidAmount = (order.mfrPaidAmount || 0) + amt;
+        order.mfrPaidAt = new Date();
+        if (mp.method) order.mfrPayMethod = mp.method;
+        if (mp.reference) order.mfrPayReference = mp.reference;
+      }
+      const bill = order.mfrBillAmount || 0;
+      order.mfrPayStatus = order.mfrPaidAmount <= 0 ? 'PENDING' : (bill > 0 && order.mfrPaidAmount >= bill ? 'PAID' : 'PARTIAL');
     }
     if (patch.notes !== undefined) order.notes = patch.notes;
     if (patch.total !== undefined) order.total = patch.total;

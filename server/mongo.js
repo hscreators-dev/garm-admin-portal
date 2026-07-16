@@ -105,6 +105,14 @@ const OrderSchema = new mongoose.Schema(
     refundReason: String,
     refundReference: String,
 
+    // ── Manufacturer payment (admin pays the manufacturer for this production) ──
+    mfrBillAmount: { type: Number, default: 0 },  // amount owed to the manufacturer
+    mfrPaidAmount: { type: Number, default: 0 },  // amount paid so far
+    mfrPayStatus: { type: String, enum: ['PENDING', 'PARTIAL', 'PAID'], default: 'PENDING' },
+    mfrPaidAt: Date,
+    mfrPayMethod: String,
+    mfrPayReference: String,
+
     coordinatorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     notes: String,
 

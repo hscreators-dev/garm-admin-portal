@@ -64,6 +64,13 @@ export interface Order {
   refundedAt?: string | null;
   refundReason?: string | null;
   refundReference?: string | null;
+  // Manufacturer payment (admin pays the manufacturer for this production run)
+  mfrBillAmount?: number;
+  mfrPaidAmount?: number;
+  mfrPayStatus?: string;   // PENDING | PARTIAL | PAID
+  mfrPaidAt?: string | null;
+  mfrPayMethod?: string | null;
+  mfrPayReference?: string | null;
   assignedEmployee?: string | null;
   trackingCourier?: string | null;
   trackingNumber?: string | null;

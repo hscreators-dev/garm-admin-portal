@@ -482,8 +482,17 @@ const routes = [
     const existing = await db.getOrder(Number(p.id));
     if (!existing) return send(res, 404, { error: 'Order not found' });
     // ── Cancellation & refund guards ──
-    if (body.status === 'CANCELLED' && ['DELIVERED', 'CANCELLED'].includes(existing.status)) {
-      return send(res, 400, { error: existing.status === 'CANCELLED' ? 'This order is already cancelled.' : 'A delivered order cannot be cancelled — issue a refund instead if needed.' });
+    // Cancel only BEFORE production starts. Once production is underway (or the
+    // order is shipped/delivered/already cancelled) it can't be cancelled.
+    if (body.status === 'CANCELLED') {
+      const noCancel = ['IN_PROGRESS', 'QC_READY', 'QC_APPROVED', 'INVOICED', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
+      if (noCancel.includes(existing.status)) {
+        return send(res, 400, {
+          error: existing.status === 'CANCELLED' ? 'This order is already cancelled.'
+            : existing.status === 'DELIVERED' ? 'A delivered order cannot be cancelled — issue a refund instead if needed.'
+            : 'Production has already started — this order can no longer be cancelled.',
+        });
+      }
     }
     if (body.refund) {
       const everPaid = ['paid', 'partial', 'partial_refund'].includes(existing.paymentStatus) || ['COMPLETED', 'PARTIAL'].includes(existing.pay);
@@ -495,13 +504,11 @@ const routes = [
       if (paidTotal > 0 && already + amt > paidTotal) return send(res, 400, { error: `Refund exceeds the amount paid (₹${paidTotal.toLocaleString('en-IN')}). Already refunded: ₹${already.toLocaleString('en-IN')}.` });
     }
     const isB2C = existing.type === 'B2C';
-    // Individuals (B2C) skip in-house QC entirely — only Organisation (B2B)
-    // orders go through inspection. Block the status transition rather than
-    // silently allowing an Individual order to sit in a QC stage that isn't
-    // even shown on their tracker (see buildTrackSteps above).
-    if (isB2C && (body.status === 'QC_READY' || body.status === 'QC_APPROVED')) {
-      return send(res, 400, { error: 'Individual orders skip QC.' });
-    }
+    // Individual (B2C) orders now ALSO go through in-house QC: after the goods
+    // come back from the manufacturer we inspect them, then ship. QC is internal
+    // — the customer's tracker stays on "In production" during inspection (see
+    // deriveCustomerStatus), then flips to Shipped.
+    // QC still requires the customer to have paid (enforced by the gate below).
     // B2C flow gates: submit -> CONFIRM (admin) -> customer pays -> production.
     if (body.status === 'CONFIRMED' && !isB2C) {
       return send(res, 400, { error: 'Only Individual orders use Accept & Confirm — Organisation orders are confirmed by issuing a quote.' });
@@ -509,7 +516,7 @@ const routes = [
     if (isB2C && body.status === 'INVOICED') {
       return send(res, 400, { error: 'Individual orders are paid in the Garm App after confirmation — no separate invoicing step.' });
     }
-    if (isB2C && ['ASSIGNED', 'IN_PROGRESS', 'SHIPPED', 'DELIVERED'].includes(body.status)) {
+    if (isB2C && ['ASSIGNED', 'IN_PROGRESS', 'QC_READY', 'QC_APPROVED', 'SHIPPED', 'DELIVERED'].includes(body.status)) {
       if (!existing.confirmedAt && existing.status === 'NEW') {
         return send(res, 400, { error: 'Accept & Confirm this order first — the customer must see the confirmation and pay before production.' });
       }

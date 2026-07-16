@@ -21,6 +21,8 @@ const STEPS_B2C = [
   { s: 'PAID', l: 'Payment Received' },
   { s: 'ASSIGNED', l: 'Assigned to Manufacturer' },
   { s: 'IN_PROGRESS', l: 'In Production' },
+  { s: 'QC_READY', l: 'Awaiting QC' },
+  { s: 'QC_APPROVED', l: 'QC Approved' },
   { s: 'SHIPPED', l: 'Shipped' },
   { s: 'DELIVERED', l: 'Delivered' },
 ];
@@ -342,6 +344,8 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
   const [cancelReason, setCancelReason] = useState('');
   const [refundModal, setRefundModal] = useState(false);
   const [refundForm, setRefundForm] = useState({ amount: 0, reason: '', reference: '' });
+  const [mfrPayModal, setMfrPayModal] = useState(false);
+  const [mfrPayForm, setMfrPayForm] = useState({ bill: 0, amount: 0, method: 'Bank Transfer', reference: '' });
 
   const isB2C = order.type === 'B2C';
   const pieces = totalPieces(order);
@@ -354,12 +358,24 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
   const paid = order.paymentStatus === 'paid' || order.pay === 'COMPLETED';
   const awaitingConfirmation = isB2C && order.status === 'NEW';
   const awaitingPayment = isB2C && order.status === 'CONFIRMED' && !paid;
-  // Cancel / refund availability
+  // Cancel / refund availability — tied to the production lifecycle:
+  //  • Cancel: allowed only BEFORE production starts (NEW → CONFIRMED → PAID →
+  //    ASSIGNED). Once IN_PROGRESS (production) or later, the order can't be
+  //    cancelled by anyone.
+  //  • Refund: only makes sense when money was collected AND the order is
+  //    cancelled or delivered (e.g. damage). Never shown during confirmation or
+  //    active production.
   const refundedTotal = order.refundAmount || 0;
   const everPaid = paid || order.pay === 'PARTIAL' || ['partial', 'paid', 'partial_refund'].includes(order.paymentStatus || '');
   const fullyRefunded = order.paymentStatus === 'refunded' || (displayTotal > 0 && refundedTotal >= displayTotal);
-  const canCancel = order.status !== 'CANCELLED' && order.status !== 'DELIVERED';
-  const canRefund = everPaid && !fullyRefunded;
+  const productionOrLater = ['IN_PROGRESS', 'QC_READY', 'QC_APPROVED', 'INVOICED', 'SHIPPED', 'DELIVERED', 'CANCELLED'].includes(order.status);
+  const canCancel = !productionOrLater;
+  const canRefund = everPaid && !fullyRefunded && ['CANCELLED', 'DELIVERED'].includes(order.status);
+  // Manufacturer payment — relevant once the order is with a manufacturer.
+  const mfrAssigned = !!order.mfr && order.mfr !== '—';
+  const mfrBill = order.mfrBillAmount || 0;
+  const mfrPaid = order.mfrPaidAmount || 0;
+  const mfrFullyPaid = order.mfrPayStatus === 'PAID' || (mfrBill > 0 && mfrPaid >= mfrBill);
 
   async function patchOrder(patch: Record<string, unknown>, okMsg: string) {
     try {
@@ -418,6 +434,17 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
       `Refund of ${formatINR(amount)} recorded for ${order.no} — the customer sees it in the Garm App.`,
     );
     setRefundModal(false);
+  }
+
+  function confirmMfrPayment() {
+    const bill = Math.round(Number(mfrPayForm.bill) || 0);
+    const amount = Math.round(Number(mfrPayForm.amount) || 0);
+    if (bill <= 0 && amount <= 0) { showToast('Enter the bill amount and/or a payment.'); return; }
+    patchOrder(
+      { mfrPayment: { bill, amount, method: mfrPayForm.method, reference: mfrPayForm.reference.trim() || undefined } },
+      amount > 0 ? `Recorded ${formatINR(amount)} paid to ${order.mfr}.` : `Manufacturer bill set to ${formatINR(bill)}.`,
+    );
+    setMfrPayModal(false);
   }
 
   function confirmShip() {
@@ -495,12 +522,21 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
   const nextAction = ((): { label: string; icon: string; patch: Record<string, unknown> } | null => {
     if (order.status === 'CANCELLED' || order.status === 'DELIVERED') return null;
     if (order.status === 'ASSIGNED') return { label: 'Start Production', icon: 'factory', patch: { status: 'IN_PROGRESS' } };
+    // Goods back from the manufacturer → in-house QC (BOTH Individual and
+    // Organisation orders are now inspected before shipping).
     if (order.status === 'IN_PROGRESS') {
-      return isB2C
-        ? { label: 'Received from Manufacturer · Start Shipping', icon: 'package', patch: { status: 'SHIPPED' } }
-        : { label: 'Received from Manufacturer · Send to QC', icon: 'shieldSm', patch: { status: 'QC_READY' } };
+      return { label: 'Received from Manufacturer · Send to QC', icon: 'shieldSm', patch: { status: 'QC_READY' } };
     }
-    if (order.status === 'QC_APPROVED') return { label: 'Mark Invoiced', icon: 'file', patch: { status: 'INVOICED' } };
+    // At QC_READY the inspection is done on the Quality Control page (sidebar) —
+    // no single next-step button here.
+    if (order.status === 'QC_READY') return null;
+    // After QC passes: Individuals ship straight away; Organisations invoice the
+    // balance first.
+    if (order.status === 'QC_APPROVED') {
+      return isB2C
+        ? { label: 'Start Shipping', icon: 'package', patch: { status: 'SHIPPED' } }
+        : { label: 'Mark Invoiced', icon: 'file', patch: { status: 'INVOICED' } };
+    }
     // Balance received (recorded offline at Invoiced, or paid in the app →
     // status PAID): shipping is the next step.
     if (!isB2C && (order.status === 'PAID' || (order.status === 'INVOICED' && paid))) return { label: 'Start Shipping', icon: 'package', patch: { status: 'SHIPPED' } };
@@ -591,7 +627,15 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
         <div className="card card-pad no-print" style={{ marginBottom: 14, borderLeft: '3px solid var(--brand, #C8A97E)' }}>
           <b>In production with {order.mfr}.</b>
           <div className="small-muted" style={{ marginTop: 4 }}>
-            When the goods arrive back from the manufacturer{isB2C ? ' and are packed for dispatch, click "Received from Manufacturer · Start Shipping" above — the customer immediately sees Shipped in Track.' : ', click the button above to send them to Quality Control.'}
+            When the goods arrive back from the manufacturer, click "Received from Manufacturer · Send to QC" above — you inspect the run before shipping.
+          </div>
+        </div>
+      )}
+      {order.status === 'QC_READY' && (
+        <div className="card card-pad no-print" style={{ marginBottom: 14, borderLeft: '3px solid var(--brand, #C8A97E)' }}>
+          <b>Awaiting quality control.</b>
+          <div className="small-muted" style={{ marginTop: 4 }}>
+            Inspect this production run on the <b>Quality Control</b> page (left menu). Passing it {isB2C ? 'lets you ship to the customer' : 'moves it to invoicing, then shipping'}; failing sends it back to the manufacturer for rework.
           </div>
         </div>
       )}
@@ -790,6 +834,26 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
             </div>
           </div>
 
+          {/* Manufacturer payment — what WE owe/pay the manufacturer for this run. */}
+          {mfrAssigned && (
+            <div className="card card-pad" style={{ marginBottom: 14 }}>
+              <h3 style={{ margin: '0 0 10px', fontSize: '13.5px' }}>Manufacturer Payment</h3>
+              <div className="info-row"><span className="k">Manufacturer</span><span className="v">{order.mfr}</span></div>
+              <div className="info-row"><span className="k">Bill amount</span><span className="v">{mfrBill > 0 ? formatINR(mfrBill) : 'Not set'}</span></div>
+              <div className="info-row"><span className="k">Paid</span><span className="v">{formatINR(mfrPaid)}{mfrBill > 0 ? ` / ${formatINR(mfrBill)}` : ''}</span></div>
+              <div className="info-row"><span className="k">Status</span><span className="v"><Badge status={order.mfrPayStatus || 'PENDING'} /></span></div>
+              {order.mfrPaidAt && <div className="info-row"><span className="k">Last paid</span><span className="v">{order.mfrPaidAt}</span></div>}
+              {order.mfrPayMethod && <div className="info-row"><span className="k">Method</span><span className="v">{order.mfrPayMethod}</span></div>}
+              {order.mfrPayReference && <div className="info-row"><span className="k">Reference</span><span className="v">{order.mfrPayReference}</span></div>}
+              <div className="no-print" style={{ marginTop: 10 }}>
+                <button className="btn btn-outline btn-sm" style={{ width: '100%', justifyContent: 'center' }} disabled={mfrFullyPaid}
+                  onClick={() => { setMfrPayForm({ bill: mfrBill, amount: mfrBill > 0 ? Math.max(0, mfrBill - mfrPaid) : 0, method: order.mfrPayMethod || 'Bank Transfer', reference: '' }); setMfrPayModal(true); }}>
+                  <Icon name="factory" /> {mfrFullyPaid ? 'Manufacturer paid' : (mfrPaid > 0 ? 'Record further payment' : 'Set bill / Record payment')}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Customer rating & feedback — submitted from the Garm App after delivery. */}
           <div className="card card-pad" style={{ marginBottom: 14 }}>
             <h3 style={{ margin: '0 0 10px', fontSize: '13.5px' }}>Customer Rating</h3>
@@ -979,6 +1043,23 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
           <div className="form-field"><label>Refund amount (₹)</label><input type="number" value={refundForm.amount} onChange={(e) => setRefundForm({ ...refundForm, amount: Number(e.target.value) })} /></div>
           <div className="form-field"><label>Reference (optional)</label><input value={refundForm.reference} onChange={(e) => setRefundForm({ ...refundForm, reference: e.target.value })} placeholder="Bank/UPI txn id" /></div>
           <div className="form-field full"><label>Reason (shown to the customer)</label><input value={refundForm.reason} onChange={(e) => setRefundForm({ ...refundForm, reason: e.target.value })} placeholder="e.g. Damaged goods — full refund" /></div>
+        </div>
+      </Modal>
+
+      {/* Manufacturer payment */}
+      <Modal open={mfrPayModal} title={`Pay ${order.mfr}`} confirmLabel="Save" onClose={() => setMfrPayModal(false)} onConfirm={confirmMfrPayment}>
+        <div className="small-muted" style={{ marginBottom: 12 }}>
+          Record what you owe and pay the manufacturer for producing this order.{mfrPaid > 0 ? ` Already paid: ${formatINR(mfrPaid)}.` : ''} This tracks your production cost — do the actual bank/UPI transfer separately.
+        </div>
+        <div className="form-grid">
+          <div className="form-field"><label>Bill amount (₹)</label><input type="number" value={mfrPayForm.bill} onChange={(e) => setMfrPayForm({ ...mfrPayForm, bill: Number(e.target.value) })} placeholder="Total owed to manufacturer" /></div>
+          <div className="form-field"><label>Pay now (₹)</label><input type="number" value={mfrPayForm.amount} onChange={(e) => setMfrPayForm({ ...mfrPayForm, amount: Number(e.target.value) })} placeholder="0 to only set the bill" /></div>
+          <div className="form-field"><label>Method</label>
+            <select value={mfrPayForm.method} onChange={(e) => setMfrPayForm({ ...mfrPayForm, method: e.target.value })}>
+              <option>Bank Transfer</option><option>UPI</option><option>Cheque</option><option>Cash</option>
+            </select>
+          </div>
+          <div className="form-field"><label>Reference (optional)</label><input value={mfrPayForm.reference} onChange={(e) => setMfrPayForm({ ...mfrPayForm, reference: e.target.value })} placeholder="Bank/UPI txn id" /></div>
         </div>
       </Modal>
     </div>
