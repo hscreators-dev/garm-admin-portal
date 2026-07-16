@@ -92,11 +92,10 @@ function deriveCustomerStatus(adminStatus, persona) {
     case 'PAID':            return isB2C ? 'Order confirmed' : 'Quality check';
     case 'ASSIGNED':        return isB2C ? 'In production' : 'Order placed';
     case 'IN_PROGRESS':     return 'In production';
-    // Individuals: QC is an INTERNAL step — the customer keeps seeing
-    // "In production" while we inspect, then it flips straight to Shipped.
-    // Organisations: QC is a visible tracker stage.
+    // QC is a VISIBLE tracker stage for everyone — when the admin moves the
+    // order to QC, the customer's tracker shows "Quality check" live.
     case 'QC_READY':
-    case 'QC_APPROVED':     return isB2C ? 'In production' : 'Quality check';
+    case 'QC_APPROVED':     return 'Quality check';
     case 'INVOICED':        return 'Quality check'; // post-QC, pre-dispatch
     case 'SHIPPED':         return 'Shipped';
     case 'DELIVERED':       return 'Delivered';
@@ -111,6 +110,17 @@ function recomputeTrackSteps(doc) {
   // pay endpoint (Payment step done, "In production" queued) — recomputing
   // here would clobber the payment sub-label, so leave it alone.
   if (doc.status === 'Order confirmed' && doc.paymentStatus === 'paid') return;
+  // Older B2C orders were created WITHOUT a "Quality check" step (QC used to be
+  // internal for individuals). Now that QC is a visible stage for everyone,
+  // insert the step (before Shipped) the moment the order reaches QC, so the
+  // customer's tracker shows it live.
+  if (doc.status === 'Quality check' && !doc.trackSteps.some((s) => (s.label || '').toLowerCase().includes('quality'))) {
+    const qcStep = { label: 'Quality check', sub: 'Garm is inspecting your pieces', status: 'pending' };
+    const shipIdx = doc.trackSteps.findIndex((s) => (s.label || '').toLowerCase().includes('ship'));
+    if (shipIdx >= 0) doc.trackSteps.splice(shipIdx, 0, qcStep);
+    else doc.trackSteps.push(qcStep);
+    if (typeof doc.markModified === 'function') doc.markModified('trackSteps');
+  }
   let idx = doc.trackSteps.findIndex((s) => stepMatchesStatus(s.label, doc.status));
   // Org order assigned to a manufacturer: "Sourcing material" is the current
   // stage (status label is still 'Order placed', which would match step 0).
