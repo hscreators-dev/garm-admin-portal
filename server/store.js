@@ -340,6 +340,45 @@ function migrate() {
     }
   }
 
+  // De-duplicate products that share a name within a catalog (case-insensitive).
+  // The Garm App matches products BY NAME, so two products with the same name are
+  // always ambiguous (they usually come from an accidental "Add Product" with an
+  // existing name — which is what blocked editing/pricing). Keep the richest
+  // record (one that has option prices, then the most configured options, then
+  // the lowest id), MERGE any option prices from the duplicates into it so no
+  // pricing is lost, and drop the extras.
+  for (const key of ['productsB2C', 'productsB2B']) {
+    const list = data[key] || [];
+    const byName = new Map();
+    for (const p of list) {
+      const n = String(p.name || '').trim().toLowerCase();
+      if (!byName.has(n)) byName.set(n, []);
+      byName.get(n).push(p);
+    }
+    const keptIds = new Set();
+    const priceScore = (p) => {
+      const op = p.optionPrices || {};
+      return ['style', 'fabric', 'gsm', 'weave'].reduce((s, b) => s + Object.keys(op[b] || {}).length, 0);
+    };
+    const optCount = (p) => (p.fabricOptions?.length || 0) + (p.gsmOptions?.length || 0) + (p.weaveOptions?.length || 0) + (p.styles?.length || 0);
+    for (const group of byName.values()) {
+      if (group.length <= 1) { if (group[0]) keptIds.add(group[0].id); continue; }
+      group.sort((a, b) => (priceScore(b) - priceScore(a)) || (optCount(b) - optCount(a)) || (a.id - b.id));
+      const keep = group[0];
+      keep.optionPrices = keep.optionPrices || { style: {}, fabric: {}, gsm: {}, weave: {} };
+      for (const dup of group.slice(1)) {
+        const op = dup.optionPrices || {};
+        for (const b of ['style', 'fabric', 'gsm', 'weave']) {
+          keep.optionPrices[b] = { ...(op[b] || {}), ...(keep.optionPrices[b] || {}) };
+        }
+      }
+      keptIds.add(keep.id);
+      changed = true;
+      console.log(`[migrate] de-duplicated ${group.length}× "${keep.name}" in ${key} — kept id ${keep.id}`);
+    }
+    if (keptIds.size !== list.length) data[key] = list.filter((p) => keptIds.has(p.id));
+  }
+
   // Settings: coordinator (procurement manager shown in the Garm App) added later.
   if (data.settings && !data.settings.coordinator) {
     data.settings.coordinator = seed.settings.coordinator;
