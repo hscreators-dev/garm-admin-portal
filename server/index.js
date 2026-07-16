@@ -996,4 +996,16 @@ server.listen(PORT, () => {
     const p = db.listProducts('B2C').length + db.listProducts('B2B').length;
     console.log(`Catalog ready: ${c} categories, ${p} products — the Garm App will show these immediately.`);
   } catch { /* non-fatal */ }
+
+  // Keep-warm (Render free tier): a free web service sleeps after ~15 min without
+  // inbound traffic, making the first request after idle slow. Ping our own
+  // /api/health every 10 min so the service never idles. RENDER_EXTERNAL_URL is
+  // injected automatically by Render; skipped locally.
+  const selfUrl = process.env.RENDER_EXTERNAL_URL;
+  if (selfUrl && process.env.NODE_ENV === 'production') {
+    setInterval(() => {
+      fetch(`${selfUrl.replace(/\/$/, '')}/api/health`).catch(() => {});
+    }, 10 * 60 * 1000).unref?.();
+    console.log(`Keep-warm self-ping enabled → ${selfUrl}/api/health every 10 min`);
+  }
 });
