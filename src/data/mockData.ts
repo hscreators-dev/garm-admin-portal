@@ -61,6 +61,10 @@ export interface Order {
   assignedEmployee?: string | null;
   trackingCourier?: string | null;
   trackingNumber?: string | null;
+  // Customer rating (1–5) + feedback, submitted from the Garm App once delivered.
+  rating?: number | null;
+  ratingFeedback?: string | null;
+  ratedAt?: string | null;
   documents?: OrderDocument[];
 }
 
@@ -158,12 +162,12 @@ export const TITLES: Record<string, string> = {
 export type Role = 'Super Admin' | 'Operations Manager' | 'QC Supervisor' | 'Finance Manager' | 'Warehouse Manager' | 'View-Only';
 
 export const ROLE_VIEWS: Record<Role, string[]> = {
-  'Super Admin': ['dashboard','catalog','orders','manufacturers','qc','documents','payments','support','reports','settings'],
-  'Operations Manager': ['dashboard','catalog','orders','manufacturers','payments','support'],
+  'Super Admin': ['dashboard','catalog','orders','customers','customer-log','manufacturers','qc','documents','payments','support','reports','settings'],
+  'Operations Manager': ['dashboard','catalog','orders','customers','customer-log','manufacturers','payments','support'],
   'QC Supervisor': ['dashboard','qc'],
   'Finance Manager': ['dashboard','documents','payments','reports'],
   'Warehouse Manager': ['dashboard','orders','documents'],
-  'View-Only': ['dashboard','catalog','orders','manufacturers','qc','documents','payments','support','reports'],
+  'View-Only': ['dashboard','catalog','orders','customers','customer-log','manufacturers','qc','documents','payments','support','reports'],
 };
 
 export function formatINR(n: number): string {

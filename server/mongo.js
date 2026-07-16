@@ -116,6 +116,10 @@ const OrderSchema = new mongoose.Schema(
     documents: { type: [OrderDocumentSchema], default: [] },
     trackingCourier: { type: String },
     trackingNumber: { type: String },
+    // Customer rating (1–5) + feedback, submitted from the Garm App once delivered.
+    rating: { type: Number, min: 1, max: 5 },
+    ratingFeedback: { type: String },
+    ratedAt: { type: Date },
   },
   { timestamps: true, collection: 'orders' }
 );
@@ -186,10 +190,24 @@ const SupportTicketSchema = new mongoose.Schema(
   { timestamps: true, collection: 'supporttickets' }
 );
 
+// Customer sign-in log — one row per OTP verification, written by the Garm App
+// backend (Latest version of FAB/backend). Powers the admin "Customer Log".
+const LoginEventSchema = new mongoose.Schema(
+  {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    name: String, phone: String, email: String,
+    mode: { type: String, enum: ['phone', 'email'] },
+    isNewUser: { type: Boolean, default: false },
+    at: { type: Date, default: Date.now },
+  },
+  { collection: 'loginevents' }
+);
+
 export const MongoOrder = mongoose.models.Order || mongoose.model('Order', OrderSchema);
 export const MongoQuote = mongoose.models.Quote || mongoose.model('Quote', QuoteSchema);
 export const MongoUser = mongoose.models.User || mongoose.model('User', UserSchema);
 export const MongoTicket = mongoose.models.SupportTicket || mongoose.model('SupportTicket', SupportTicketSchema);
+export const MongoLoginEvent = mongoose.models.LoginEvent || mongoose.model('LoginEvent', LoginEventSchema);
 
 let connectPromise = null;
 let connected = false;

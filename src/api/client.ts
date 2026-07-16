@@ -252,6 +252,12 @@ export const api = {
     orders: number; spend: number; lastOrderAt: string | null;
   }[] }>('/api/customers'),
 
+  // Customer Log — every Garm App sign-in (new vs returning) + summary counts.
+  getCustomerLog: () => http<{
+    events: { id: string; userId: string; name: string; phone: string; email: string; mode: 'phone' | 'email'; isNewUser: boolean; at: string }[];
+    counts: { totalLogins: number; newLogins: number; returningLogins: number; todayTotal: number; todayNew: number; todayReturning: number; uniqueCustomers: number };
+  }>('/api/customer-log'),
+
   // Support tickets (raised in the Garm App; worked here)
   getTickets: () => http<{ tickets: SupportTicket[] }>('/api/support/tickets'),
   replyTicket: (id: string, body: string) => http<{ ticket: SupportTicket }>(`/api/support/tickets/${id}/messages`, { method: 'POST', body: JSON.stringify({ body }) }),

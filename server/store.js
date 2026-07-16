@@ -212,6 +212,9 @@ function toAdminOrder(o) {
     paymentReference: o.paymentReference ?? null,
     confirmedAt: o.confirmedAt ? new Date(o.confirmedAt).toISOString().slice(0, 10) : null,
     assignedEmployee: o.assignedEmployee ?? null,
+    rating: o.rating ?? null,
+    ratingFeedback: o.ratingFeedback ?? null,
+    ratedAt: o.ratedAt ? new Date(o.ratedAt).toISOString().slice(0, 10) : null,
     trackingCourier: o.trackingCourier ?? null,
     trackingNumber: o.trackingNumber ?? null,
     documents: (o.documents || []).map((d) => ({

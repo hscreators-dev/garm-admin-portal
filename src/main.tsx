@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard'
 import Catalog from './pages/Catalog'
 import Orders from './pages/Orders'
 import Customers from './pages/Customers';
+import CustomerLog from './pages/CustomerLog';
 import Manufacturers from './pages/Manufacturers'
 import QC from './pages/QC'
 import Documents from './pages/Documents'
@@ -36,6 +37,7 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="catalog" element={<Catalog />} />
                 <Route path="orders" element={<Orders />} />
                 <Route path="customers" element={<Customers />} />
+                <Route path="customer-log" element={<CustomerLog />} />
                 <Route path="manufacturers" element={<Manufacturers />} />
                 <Route path="qc" element={<QC />} />
                 <Route path="documents" element={<Documents />} />

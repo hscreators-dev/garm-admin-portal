@@ -15,7 +15,7 @@
 import { createServer } from 'http';
 import { db, resetToSeed } from './store.js';
 import { rateLimit } from './security.js';
-import { connectMongo, MongoTicket } from './mongo.js';
+import { connectMongo, MongoTicket, MongoLoginEvent } from './mongo.js';
 import { ACCESSORY_SPECS_BY_CATEGORY } from './seed.js';
 import { deliverOtp } from './otpDelivery.js';
 
@@ -380,6 +380,36 @@ const routes = [
     if (!m) return send(res, 404, { error: 'Manufacturer not found' });
     broadcast('manufacturer:updated', m);
     send(res, 200, m);
+  }],
+
+  // ---- Customer Log — every Garm App sign-in, with new-vs-returning counts.
+  // Written by the FAB backend on OTP verify; read here from the shared MongoDB.
+  ['GET', /^\/api\/customer-log$/, async (_p, _b, res) => {
+    const events = await MongoLoginEvent.find().sort({ at: -1 }).limit(500).lean();
+    const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+    const todays = events.filter((e) => new Date(e.at) >= startOfToday);
+    const uniqueCustomers = new Set(events.map((e) => String(e.userId))).size;
+    send(res, 200, {
+      events: events.map((e) => ({
+        id: String(e._id),
+        userId: String(e.userId),
+        name: e.name || '',
+        phone: e.phone || '',
+        email: e.email || '',
+        mode: e.mode,
+        isNewUser: !!e.isNewUser,
+        at: e.at,
+      })),
+      counts: {
+        totalLogins: events.length,
+        newLogins: events.filter((e) => e.isNewUser).length,
+        returningLogins: events.filter((e) => !e.isNewUser).length,
+        todayTotal: todays.length,
+        todayNew: todays.filter((e) => e.isNewUser).length,
+        todayReturning: todays.filter((e) => !e.isNewUser).length,
+        uniqueCustomers,
+      },
+    });
   }],
 
   // ---- Support tickets (admin side — sees all, replies, changes status).

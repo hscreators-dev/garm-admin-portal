@@ -734,6 +734,32 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
             </div>
           </div>
 
+          {/* Customer rating & feedback — submitted from the Garm App after delivery. */}
+          <div className="card card-pad" style={{ marginBottom: 14 }}>
+            <h3 style={{ margin: '0 0 10px', fontSize: '13.5px' }}>Customer Rating</h3>
+            {order.rating ? (
+              <>
+                <div className="info-row">
+                  <span className="k">Rating</span>
+                  <span className="v" style={{ letterSpacing: 1 }}>
+                    <span style={{ color: '#e0a800' }}>{'★'.repeat(order.rating)}</span>
+                    <span style={{ color: 'var(--border)' }}>{'★'.repeat(5 - order.rating)}</span>
+                    <span style={{ marginLeft: 6, color: 'var(--muted-fg, #666)' }}>{order.rating}/5</span>
+                  </span>
+                </div>
+                {order.ratedAt && <div className="info-row"><span className="k">Rated on</span><span className="v">{order.ratedAt}</span></div>}
+                {order.ratingFeedback && (
+                  <div style={{ marginTop: 8 }}>
+                    <div className="small-muted" style={{ marginBottom: 2 }}>Feedback</div>
+                    <div style={{ fontSize: '13px', lineHeight: 1.4 }}>“{order.ratingFeedback}”</div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="small-muted">No rating yet — the customer can rate this order in the Garm App once it's delivered.</div>
+            )}
+          </div>
+
           <div className="card card-pad no-print">
             <h3 style={{ margin: '0 0 10px', fontSize: '13.5px' }}>Documents</h3>
 
