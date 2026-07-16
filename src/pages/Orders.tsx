@@ -751,7 +751,8 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
           )}
 
           <div className="dp-totals" style={{ marginTop: 10 }}>
-            {pieces > 0 && displayTotal > 0 && <div className="r"><span>Rate</span><span>{formatINR(Math.round(displayTotal / pieces))}/pc × {pieces} pcs</span></div>}
+            {/* Rate = goods only (total − service fee) ÷ pieces, so rate × pcs + fee = total — never fee-inclusive (that double-counts the fee). */}
+            {pieces > 0 && displayTotal > 0 && <div className="r"><span>Rate</span><span>{formatINR(Math.round(Math.max(0, displayTotal - serviceFee) / pieces))}/pc × {pieces} pcs</span></div>}
             <div className="r"><span>Subtotal</span><span>{formatINR(subtotal)}</span></div>
             <div className="r"><span>Tax (18% incl.)</span><span>{formatINR(tax)}</span></div>
             {serviceFee > 0 && <div className="r"><span>Service fee</span><span>{formatINR(serviceFee)}</span></div>}
