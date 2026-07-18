@@ -337,6 +337,9 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
   const [payForm, setPayForm] = useState({ amount: order.total || order.quoteAmount || 0, method: order.paymentMode || 'Bank Transfer', date: '', reference: '' });
   const [docKind, setDocKind] = useState('INVOICE');
   const [uploadingDoc, setUploadingDoc] = useState(false);
+  // Inline preview (lightbox) for customer design/logo uploads — the team must
+  // SEE what the customer sent without downloading every file blindly.
+  const [previewDoc, setPreviewDoc] = useState<{ name: string; dataUrl: string } | null>(null);
   const [generatingInvoice, setGeneratingInvoice] = useState(false);
   const [shipModal, setShipModal] = useState(false);
   const [shipForm, setShipForm] = useState({ courier: '', tracking: '' });
@@ -884,14 +887,38 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
           <div className="card card-pad no-print">
             <h3 style={{ margin: '0 0 10px', fontSize: '13.5px' }}>Documents</h3>
 
-            {/* Customer uploads (design/logo references) — downloadable */}
-            {(order.documents || []).filter((d) => d.uploadedBy === 'customer').map((d) => (
-              <div className="doc-item" key={d.id}>
-                <Icon name="file" />
-                <span className="fill">{d.name}<div className="cust-sub">{DOC_KIND_LABELS[d.kind] || d.kind} · from customer{d.createdAt ? ` · ${d.createdAt}` : ''}</div></span>
-                <a className="link" onClick={() => downloadDataUrl(d.dataUrl, d.name)}>Download</a>
-              </div>
-            ))}
+            {/* Customer uploads (design/logo references) — previewed inline so the
+                team SEES the customer's design at a glance, plus download. */}
+            {(() => {
+              const custDocs = (order.documents || []).filter((d) => d.uploadedBy === 'customer');
+              if (!custDocs.length) return null;
+              const isImg = (d: { dataUrl?: string }) => (d.dataUrl || '').startsWith('data:image');
+              return (
+                <div style={{ marginBottom: 10 }}>
+                  <div className="cust-sub" style={{ marginBottom: 6, fontWeight: 600 }}>
+                    Customer design uploads ({custDocs.length})
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 6 }}>
+                    {custDocs.filter(isImg).map((d) => (
+                      <a key={d.id} onClick={() => setPreviewDoc({ name: d.name, dataUrl: d.dataUrl })} title={`${d.name} — click to enlarge`}
+                        style={{ cursor: 'zoom-in', display: 'block', width: 88, height: 88, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border, #e5e7eb)', background: '#fafafa' }}>
+                        <img src={d.dataUrl} alt={d.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      </a>
+                    ))}
+                  </div>
+                  {custDocs.map((d) => (
+                    <div className="doc-item" key={d.id}>
+                      <Icon name="file" />
+                      <span className="fill">{d.name}<div className="cust-sub">{DOC_KIND_LABELS[d.kind] || d.kind} · from customer{d.createdAt ? ` · ${d.createdAt}` : ''}</div></span>
+                      {isImg(d)
+                        ? <a className="link" onClick={() => setPreviewDoc({ name: d.name, dataUrl: d.dataUrl })}>Preview</a>
+                        : <a className="link" onClick={() => setPreviewDoc({ name: d.name, dataUrl: d.dataUrl })}>Open</a>}
+                      <a className="link" style={{ marginLeft: 8 }} onClick={() => downloadDataUrl(d.dataUrl, d.name)}>Download</a>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
 
             {/* Admin documents — a generated-but-unsent invoice shows as a DRAFT
                 with a Send button; sent docs show "shared with customer". */}
@@ -1063,6 +1090,31 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
           <div className="form-field"><label>Reference (optional)</label><input value={mfrPayForm.reference} onChange={(e) => setMfrPayForm({ ...mfrPayForm, reference: e.target.value })} placeholder="Bank/UPI txn id" /></div>
         </div>
       </Modal>
+
+      {/* Customer design preview lightbox */}
+      {previewDoc && (
+        <div
+          onClick={() => setPreviewDoc(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(13,13,13,0.75)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, cursor: 'zoom-out',
+          }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ maxWidth: '90vw', maxHeight: '85vh', display: 'flex', flexDirection: 'column', cursor: 'default' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+              <span style={{ color: '#fff', fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60vw' }}>{previewDoc.name}</span>
+              <a className="link" style={{ color: '#fff', textDecoration: 'underline', cursor: 'pointer', fontSize: 12 }}
+                onClick={() => downloadDataUrl(previewDoc.dataUrl, previewDoc.name)}>Download</a>
+              <a className="link" style={{ color: '#fff', textDecoration: 'underline', cursor: 'pointer', fontSize: 12, marginLeft: 'auto' }}
+                onClick={() => setPreviewDoc(null)}>Close ✕</a>
+            </div>
+            {previewDoc.dataUrl.startsWith('data:image')
+              ? <img src={previewDoc.dataUrl} alt={previewDoc.name}
+                  style={{ maxWidth: '90vw', maxHeight: '78vh', objectFit: 'contain', borderRadius: 10, background: '#fff' }} />
+              : <iframe src={previewDoc.dataUrl} title={previewDoc.name}
+                  style={{ width: '82vw', height: '78vh', border: 'none', borderRadius: 10, background: '#fff' }} />}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
