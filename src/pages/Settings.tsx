@@ -4,7 +4,7 @@ import Modal from '../components/Modal';
 import { useToast } from '../components/Toast';
 import { useRole } from '../components/RoleContext';
 import { useUsers } from '../api/useUsers';
-import { api, type ApiUser, type TrackStage, type FeatureToggle, type CompanySettings, type CoordinatorSettings, type OrderFormConfig, type ServiceFeeConfig } from '../api/client';
+import { api, type ApiUser, type TrackStage, type FeatureToggle, type CompanySettings, type CoordinatorSettings, type OrderFormConfig, type ServiceFeeConfig, type HomeCampaign, type HomeTip, type HomeCollectionDef } from '../api/client';
 
 const SERVICE_FEE_FIELDS: { key: keyof ServiceFeeConfig; label: string }[] = [
   { key: 'b2cPercent', label: 'Individuals — service fee (%)' },
@@ -19,7 +19,37 @@ const SERVICE_FEE_FIELDS: { key: keyof ServiceFeeConfig; label: string }[] = [
 
 const ROLE_OPTIONS = ['Super Admin', 'Operations Manager', 'QC Supervisor', 'Finance Manager', 'Warehouse Manager', 'View-Only'];
 
-const TABS = ['Users', 'Roles & Permissions', 'Feature Toggles', 'Company Details', 'Procurement Manager', 'Order Form', 'Order Tracking'];
+const TABS = ['Users', 'Roles & Permissions', 'Feature Toggles', 'Company Details', 'Procurement Manager', 'Order Form', 'Order Tracking', 'Garm App Home'];
+
+// Defaults mirror the app's built-in Home content — the admin starts editing
+// from exactly what customers see today.
+const DEFAULT_HOME_CAMPAIGNS: HomeCampaign[] = [
+  { title: 'Wedding & Events', sub: 'Custom fabric orders for weddings, functions & events. Match your theme colours — sarees to sherwanis — with free design consultation.', badge: 'New', ctaLabel: 'Explore the workflow', target: 'none', theme: 'purple', enabled: true },
+  { title: 'School reopening?', sub: "Kids' uniforms, sports tees and house colours — age-based sizing, name tags on request, delivered before the first bell.", badge: '', ctaLabel: 'Start a kids order', target: 'kids', theme: 'blue', enabled: true },
+  { title: 'Surplus fabric week', sub: 'Premium roll-ends, rescued — the exact same garment, 15% kinder to your wallet and the planet. Pick "Surplus fabric" at the Material step.', badge: 'Save 15%', ctaLabel: 'Order with surplus fabric', target: 'order', theme: 'green', enabled: true },
+];
+const DEFAULT_HOME_TIPS: HomeTip[] = [
+  { chip: 'Quality', tone: 'green', title: '180 vs 230 GSM — feel the difference', body: 'Why heavier fabric survives 50+ washes and drapes better. 30-second read.' },
+  { chip: 'Colours', tone: 'gold', title: 'Colours that never betray you', body: 'Navy, bottle green & charcoal hide stains, hold dye and match everything.' },
+  { chip: 'Care', tone: 'muted', title: 'Why your black tee fades', body: 'Wash inside-out, cold water, skip the dryer. Your tee will thank you.' },
+  { chip: 'Real talk', tone: 'gold', title: 'Surplus fabric = 15% smug savings', body: 'Ends of premium rolls, rescued. The planet approves. So does your wallet.' },
+  { chip: 'Craft', tone: 'muted', title: 'Single-needle stitching, explained', body: 'The tiny detail that separates "uniform" from "tailored".' },
+];
+const DEFAULT_HOME_COLLECTIONS: HomeCollectionDef[] = [
+  { id: 'tees', title: 'Everyday Tees Pack', sub: '2× Black + 1× Off-white tees', audience: 'men', lines: [
+    { categoryId: 'mens', name: 'T-Shirts', basePrice: 190, qty: 2, colorHex: '#0D0D0D', colorLabel: 'Black' },
+    { categoryId: 'mens', name: 'Oversized T-Shirts', basePrice: 240, qty: 1, colorHex: '#F4F1EA', colorLabel: 'Off-White' },
+  ]},
+  { id: 'office', title: 'Office Ready', sub: '2× Formal shirts + chinos', audience: 'men', lines: [
+    { categoryId: 'mens', name: 'Shirts (Formal)', basePrice: 360, qty: 2, colorHex: '#F5F5F2', colorLabel: 'White' },
+    { categoryId: 'mens', name: 'Chinos', basePrice: 480, qty: 1, colorHex: '#1F2A44', colorLabel: 'Navy' },
+  ]},
+  { id: 'her', title: 'Her Essentials', sub: 'Kurti + leggings + top', audience: 'women', lines: [
+    { categoryId: 'womens', name: 'Kurtis', basePrice: 380, qty: 1, colorHex: '#7C3A5B', colorLabel: 'Berry' },
+    { categoryId: 'womens', name: 'Leggings', basePrice: 220, qty: 1, colorHex: '#0D0D0D', colorLabel: 'Black' },
+    { categoryId: 'womens', name: 'Tops', basePrice: 260, qty: 1, colorHex: '#F4F1EA', colorLabel: 'Off-White' },
+  ]},
+];
 
 // Sections of the Garm App's custom order flow — each can be switched off
 // here and disappears from the app instantly.
@@ -84,6 +114,11 @@ export default function Settings() {
   const [trackStages, setTrackStages] = useState<TrackStage[]>([]);
   const [trackStagesLoading, setTrackStagesLoading] = useState(true);
   const [savingStages, setSavingStages] = useState(false);
+  // Garm App Home content (campaign banners / tips / collections)
+  const [homeCampaigns, setHomeCampaigns] = useState<HomeCampaign[]>(DEFAULT_HOME_CAMPAIGNS);
+  const [homeTips, setHomeTips] = useState<HomeTip[]>(DEFAULT_HOME_TIPS);
+  const [homeCollectionsJson, setHomeCollectionsJson] = useState(JSON.stringify(DEFAULT_HOME_COLLECTIONS, null, 2));
+  const [savingHome, setSavingHome] = useState(false);
 
   useEffect(() => {
     api.getTrackStages().then(setTrackStages).finally(() => setTrackStagesLoading(false));
@@ -93,11 +128,44 @@ export default function Settings() {
       setCoordinator(s.coordinator);
       setOrderForm(s.orderForm);
       setServiceFee(s.serviceFee);
+      if (s.homeContent?.campaigns?.length) setHomeCampaigns(s.homeContent.campaigns);
+      if (s.homeContent?.tips?.length) setHomeTips(s.homeContent.tips);
+      if (s.homeContent?.collections?.length) setHomeCollectionsJson(JSON.stringify(s.homeContent.collections, null, 2));
     }).finally(() => {
       setFeaturesLoading(false);
       setCompanyLoading(false);
     });
   }, []);
+
+  async function saveHomeContent() {
+    let collections: HomeCollectionDef[];
+    try {
+      collections = JSON.parse(homeCollectionsJson);
+      if (!Array.isArray(collections)) throw new Error('must be a JSON array');
+      for (const c of collections) {
+        if (!c.id || !c.title || !Array.isArray(c.lines) || c.lines.length === 0) throw new Error(`collection "${c.title || c.id || '?'}" needs id, title and at least one line`);
+        if (c.audience !== 'men' && c.audience !== 'women') throw new Error(`collection "${c.title}": audience must be "men" or "women"`);
+        for (const l of c.lines) {
+          if (l.categoryId !== 'mens' && l.categoryId !== 'womens') throw new Error(`"${c.title}": categoryId must be "mens" or "womens"`);
+          if (!l.name || !(l.qty > 0) || !l.colorHex || !l.colorLabel) throw new Error(`"${c.title}": every line needs name, qty, colorHex, colorLabel`);
+        }
+      }
+    } catch (err) {
+      showToast(`Collections JSON problem: ${(err as Error).message}`);
+      return;
+    }
+    if (homeCampaigns.some((c) => !c.title.trim())) { showToast('Every campaign needs a title.'); return; }
+    if (homeTips.some((t) => !t.title.trim())) { showToast('Every tip needs a title.'); return; }
+    setSavingHome(true);
+    try {
+      await api.updateHomeContent({ campaigns: homeCampaigns, tips: homeTips, collections });
+      showToast('Garm App Home content saved — customers see it within a minute (no deploy needed).');
+    } catch (err) {
+      showToast(`Couldn't save: ${(err as Error).message}`);
+    } finally {
+      setSavingHome(false);
+    }
+  }
 
   async function toggleFeature(f: FeatureToggle) {
     const next = !f.on;
@@ -436,6 +504,89 @@ export default function Settings() {
           </div>
           <div style={{ textAlign: 'right', marginTop: 16 }}>
             <button className="btn btn-primary" disabled={savingStages} onClick={saveTrackStages}>{savingStages ? 'Saving…' : 'Save Changes'}</button>
+          </div>
+        </div>
+      )}
+
+      {tab === 7 && (
+        <div>
+          <div className="small-muted" style={{ marginBottom: 12 }}>
+            Everything the Garm App's Home screen shows between the hero and the order list — campaign banners,
+            "Good to know" tips and curated Collections. Saved changes reach customers live (the app refreshes its
+            config about once a minute) — no deploy needed. Until you save here for the first time, the app shows
+            its built-in defaults (pre-filled below).
+          </div>
+
+          <div className="card card-pad">
+            <h3 style={{ margin: '0 0 4px', fontSize: '13.5px' }}>Campaign banners</h3>
+            <div className="small-muted" style={{ marginBottom: 12 }}>Swipeable carousel under the categories. "Opens" controls what a tap does: a kids order, the order page, or nothing.</div>
+            {homeCampaigns.map((c, i) => (
+              <div key={i} className="form-grid" style={{ marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid var(--border)' }}>
+                <div className="form-field"><label>Title</label><input value={c.title} onChange={(e) => setHomeCampaigns(cs => cs.map((x, j) => j === i ? { ...x, title: e.target.value } : x))} /></div>
+                <div className="form-field"><label>Badge (optional, e.g. "Save 15%")</label><input value={c.badge || ''} onChange={(e) => setHomeCampaigns(cs => cs.map((x, j) => j === i ? { ...x, badge: e.target.value } : x))} /></div>
+                <div className="form-field full"><label>Text</label><input value={c.sub} onChange={(e) => setHomeCampaigns(cs => cs.map((x, j) => j === i ? { ...x, sub: e.target.value } : x))} /></div>
+                <div className="form-field"><label>CTA label</label><input value={c.ctaLabel} onChange={(e) => setHomeCampaigns(cs => cs.map((x, j) => j === i ? { ...x, ctaLabel: e.target.value } : x))} /></div>
+                <div className="form-field"><label>Opens</label>
+                  <select value={c.target} onChange={(e) => setHomeCampaigns(cs => cs.map((x, j) => j === i ? { ...x, target: e.target.value as HomeCampaign['target'] } : x))}>
+                    <option value="none">Nothing (info only)</option>
+                    <option value="order">Order page</option>
+                    <option value="kids">Kids order (audience pre-selected)</option>
+                  </select>
+                </div>
+                <div className="form-field"><label>Colour theme</label>
+                  <select value={c.theme} onChange={(e) => setHomeCampaigns(cs => cs.map((x, j) => j === i ? { ...x, theme: e.target.value as HomeCampaign['theme'] } : x))}>
+                    <option value="purple">Purple (royal)</option><option value="blue">Blue</option>
+                    <option value="green">Green</option><option value="gold">Gold</option><option value="dark">Dark</option>
+                  </select>
+                </div>
+                <div className="form-field" style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', margin: 0 }}>
+                    <input type="checkbox" checked={c.enabled} onChange={(e) => setHomeCampaigns(cs => cs.map((x, j) => j === i ? { ...x, enabled: e.target.checked } : x))} /> Live
+                  </label>
+                  <a className="link" style={{ color: 'var(--danger, #dc2626)' }} onClick={() => setHomeCampaigns(cs => cs.filter((_, j) => j !== i))}>Remove</a>
+                </div>
+              </div>
+            ))}
+            <button className="btn btn-outline btn-sm" onClick={() => setHomeCampaigns(cs => [...cs, { title: '', sub: '', badge: '', ctaLabel: 'Learn more', target: 'order', theme: 'gold', enabled: true }])}>
+              <Icon name="plus" /> Add campaign
+            </button>
+          </div>
+
+          <div className="card card-pad" style={{ marginTop: 14 }}>
+            <h3 style={{ margin: '0 0 4px', fontSize: '13.5px' }}>"Good to know" tips</h3>
+            <div className="small-muted" style={{ marginBottom: 12 }}>The scrollable tips rail — quality, colours, care, humour. Refresh these weekly to keep Home alive.</div>
+            {homeTips.map((t, i) => (
+              <div key={i} className="form-grid" style={{ marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid var(--border)' }}>
+                <div className="form-field"><label>Chip (e.g. Quality)</label><input value={t.chip} onChange={(e) => setHomeTips(ts => ts.map((x, j) => j === i ? { ...x, chip: e.target.value } : x))} /></div>
+                <div className="form-field"><label>Chip colour</label>
+                  <select value={t.tone} onChange={(e) => setHomeTips(ts => ts.map((x, j) => j === i ? { ...x, tone: e.target.value as HomeTip['tone'] } : x))}>
+                    <option value="gold">Gold</option><option value="green">Green</option><option value="muted">Grey</option>
+                  </select>
+                </div>
+                <div className="form-field full"><label>Title</label><input value={t.title} onChange={(e) => setHomeTips(ts => ts.map((x, j) => j === i ? { ...x, title: e.target.value } : x))} /></div>
+                <div className="form-field full"><label>Body</label><input value={t.body} onChange={(e) => setHomeTips(ts => ts.map((x, j) => j === i ? { ...x, body: e.target.value } : x))} /></div>
+                <div className="form-field"><a className="link" style={{ color: 'var(--danger, #dc2626)' }} onClick={() => setHomeTips(ts => ts.filter((_, j) => j !== i))}>Remove</a></div>
+              </div>
+            ))}
+            <button className="btn btn-outline btn-sm" onClick={() => setHomeTips(ts => [...ts, { chip: 'Tip', tone: 'muted', title: '', body: '' }])}>
+              <Icon name="plus" /> Add tip
+            </button>
+          </div>
+
+          <div className="card card-pad" style={{ marginTop: 14 }}>
+            <h3 style={{ margin: '0 0 4px', fontSize: '13.5px' }}>Collections (curated bundles)</h3>
+            <div className="small-muted" style={{ marginBottom: 12 }}>
+              Ready-made bundles that open the order pre-filled. Edited as JSON for now — each collection needs
+              <b> id, title, sub, audience</b> ("men"/"women") and <b>lines</b> with categoryId ("mens"/"womens"), name
+              (must match a catalog garment name exactly), basePrice, qty, colorHex, colorLabel. Validated on save.
+            </div>
+            <textarea value={homeCollectionsJson} onChange={(e) => setHomeCollectionsJson(e.target.value)}
+              spellCheck={false}
+              style={{ width: '100%', minHeight: 260, fontFamily: 'monospace', fontSize: 12, lineHeight: 1.5, padding: 12, borderRadius: 8, border: '1px solid var(--border)', resize: 'vertical' }} />
+          </div>
+
+          <div style={{ textAlign: 'right', marginTop: 16 }}>
+            <button className="btn btn-primary" disabled={savingHome} onClick={saveHomeContent}>{savingHome ? 'Saving…' : 'Save — goes live in the app'}</button>
           </div>
         </div>
       )}

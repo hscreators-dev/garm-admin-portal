@@ -143,12 +143,36 @@ export interface ServiceFeeConfig {
   orgAdvancePercent: number; // % advance organisations pay before production (balance after QC)
 }
 
+// ── Garm App Home content — campaign banners, tips and curated collections
+// shown live on the app's Home screen. null = app uses its built-in defaults.
+export interface HomeCampaign {
+  title: string; sub: string; badge?: string; ctaLabel: string;
+  target: 'kids' | 'order' | 'none';
+  theme: 'purple' | 'blue' | 'green' | 'gold' | 'dark';
+  enabled: boolean;
+}
+export interface HomeTip {
+  chip: string; tone: 'gold' | 'green' | 'muted'; title: string; body: string;
+}
+export interface HomeCollectionLine {
+  categoryId: 'mens' | 'womens'; name: string; basePrice: number; qty: number; colorHex: string; colorLabel: string;
+}
+export interface HomeCollectionDef {
+  id: string; title: string; sub: string; audience: 'men' | 'women'; lines: HomeCollectionLine[];
+}
+export interface HomeContent {
+  campaigns?: HomeCampaign[];
+  tips?: HomeTip[];
+  collections?: HomeCollectionDef[];
+}
+
 export interface AppSettings {
   features: FeatureToggle[];
   company: CompanySettings;
   coordinator: CoordinatorSettings;
   orderForm: OrderFormConfig;
   serviceFee: ServiceFeeConfig;
+  homeContent?: HomeContent | null;
 }
 
 export interface ApiUser {
@@ -234,6 +258,8 @@ export const api = {
     http<OrderFormConfig>('/api/settings/order-form', { method: 'PUT', body: JSON.stringify(patch) }),
   updateServiceFee: (patch: Partial<ServiceFeeConfig>) =>
     http<ServiceFeeConfig>('/api/settings/service-fee', { method: 'PUT', body: JSON.stringify(patch) }),
+  updateHomeContent: (patch: HomeContent) =>
+    http<HomeContent>('/api/settings/home-content', { method: 'PUT', body: JSON.stringify(patch) }),
 
   // Manufacturers
   getManufacturers: () => http<unknown[]>('/api/manufacturers'),

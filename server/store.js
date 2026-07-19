@@ -1335,6 +1335,22 @@ export const db = {
     return data.settings.coordinator;
   },
 
+  // ---- Garm App Home content — campaign banners, curated collections and
+  // "Good to know" tips shown on the app's Home screen. Managed here in the
+  // portal; the app falls back to its built-in defaults until this is set. ----
+  getHomeContent() { return data.settings.homeContent || null; },
+  updateHomeContent(patch) {
+    const cur = data.settings.homeContent || {};
+    const next = { ...cur };
+    // Each list replaces wholesale (the admin UI always sends complete lists).
+    if (Array.isArray(patch.campaigns)) next.campaigns = patch.campaigns.slice(0, 8);
+    if (Array.isArray(patch.tips)) next.tips = patch.tips.slice(0, 12);
+    if (Array.isArray(patch.collections)) next.collections = patch.collections.slice(0, 8);
+    data.settings.homeContent = next;
+    persist();
+    return data.settings.homeContent;
+  },
+
   // ---- Garm App order-form configuration (which sections customers see in
   // the custom order flow — style, materials, sizes, references, preview) ----
   getOrderForm() { return data.settings.orderForm; },

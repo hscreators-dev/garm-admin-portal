@@ -356,6 +356,15 @@ const routes = [
     broadcast('settings:coordinator-updated', result);
     send(res, 200, result);
   }],
+  // Garm App Home content (campaign banners / tips / collections) — shown
+  // live on the app's Home screen.
+  ['PUT', /^\/api\/settings\/home-content$/, async (_p, body, res) => {
+    const requester = requireAdmin(res);
+    if (!requester) return;
+    const result = db.updateHomeContent(body || {});
+    broadcast('settings:home-content-updated', result);
+    send(res, 200, result);
+  }],
   // Garm App order-form section toggles (style / materials / sizes /
   // references / live preview) — read live by the app's custom order flow.
   ['PUT', /^\/api\/settings\/order-form$/, async (_p, body, res) => {
@@ -942,7 +951,7 @@ const routes = [
     // integration to do anything — the admin UI marks those as "needs setup".
     const features = {};
     for (const f of (db.getSettings?.().features || [])) features[f.key] = !!f.on;
-    send(res, 200, { orderForm: db.getOrderForm(), serviceFee: db.getServiceFee(), features });
+    send(res, 200, { orderForm: db.getOrderForm(), serviceFee: db.getServiceFee(), features, homeContent: db.getHomeContent ? db.getHomeContent() : null });
   }],
 
   // ---- Garm App: virtual try-on — not wired to an image-gen service in this
