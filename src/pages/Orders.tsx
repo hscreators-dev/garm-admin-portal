@@ -86,7 +86,26 @@ export default function Orders() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const selected = orders.find((o) => o.id === selectedId) || null;
 
-  if (loading) return <div className="small-muted" style={{ padding: 24 }}>Loading orders from the backend…</div>;
+  if (loading) return (
+    // Proper loading state — skeleton order rows instead of a near-blank page.
+    <div style={{ padding: 24 }}>
+      <style>{`@keyframes ordersShimmer{0%,100%{opacity:.5}50%{opacity:1}}`}</style>
+      <div className="small-muted" style={{ marginBottom: 14 }}>Loading orders…</div>
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <div key={i} style={{
+          background: 'var(--card, #fff)', border: '1px solid var(--border, #e5e7eb)', borderRadius: 12,
+          padding: '14px 16px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 16,
+          animation: `ordersShimmer 1.2s ease-in-out ${i * 0.12}s infinite`,
+        }}>
+          <div style={{ width: 70, height: 12, borderRadius: 6, background: 'var(--muted, #f0efed)' }}/>
+          <div style={{ width: 180, height: 12, borderRadius: 6, background: 'var(--muted, #f0efed)' }}/>
+          <div style={{ width: 90, height: 12, borderRadius: 6, background: 'var(--muted, #f0efed)' }}/>
+          <div style={{ flex: 1 }}/>
+          <div style={{ width: 60, height: 20, borderRadius: 10, background: 'var(--muted, #f0efed)' }}/>
+        </div>
+      ))}
+    </div>
+  );
 
   return selected ? (
     <OrderDetail
