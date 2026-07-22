@@ -378,8 +378,14 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
   const steps = stepsFor(order.type);
   const curIdx = order.status === 'CANCELLED' ? -1 : steps.findIndex((s) => s.s === order.status);
   const paid = order.paymentStatus === 'paid' || order.pay === 'COMPLETED';
-  const awaitingConfirmation = isB2C && order.status === 'NEW';
-  const awaitingPayment = isB2C && order.status === 'CONFIRMED' && !paid;
+  // Both Individual (B2C) AND Organisation (B2B) orders need the coordinator to
+  // set the final price before anything is payable. Previously this was gated to
+  // isB2C, so an organisation order had NO "Accept & Confirm" button anywhere —
+  // it was permanently stuck at ₹0 with no way to enter the quote, which is why
+  // org totals never matched the customer app. Confirming writes total +
+  // quoteAmount and unlocks the customer's payment (advance for org).
+  const awaitingConfirmation = order.status === 'NEW';
+  const awaitingPayment = order.status === 'CONFIRMED' && !paid;
   // Cancel / refund availability — tied to the production lifecycle:
   //  • Cancel: allowed only BEFORE production starts (NEW → CONFIRMED → PAID →
   //    ASSIGNED). Once IN_PROGRESS (production) or later, the order can't be
