@@ -652,7 +652,15 @@ const routes = [
     if (!body.email) return send(res, 400, { error: 'email is required' });
     const clean = String(body.email).trim().toLowerCase();
     if (!rateLimit(`admin-send:${clean}`, 5, 10 * 60 * 1000).allowed) return send(res, 429, { error: 'Too many codes requested for this email — try again shortly' });
-    const user = db.getUserByEmail(clean);
+    let user = db.getUserByEmail(clean);
+    // Dev-OTP bootstrap: with no email/SMS gateway wired there is otherwise NO
+    // way to get the first Super Admin signed in — you must already be signed in
+    // to add users under Settings → Users. While dev OTP is on (ALLOW_DEV_OTP /
+    // OTP_DEV_MODE), auto-provision an unknown email as Super Admin so the
+    // on-screen code flow works end to end for whatever email you type. This is
+    // the same trust level dev OTP already grants ("anyone who knows an admin
+    // email can sign in"); turn dev OTP off once real SMTP delivery works.
+    if (!user && OTP_DEV_MODE) user = db.ensureSuperAdmin(clean);
     // Same response whether or not the email is provisioned, so this endpoint
     // can't be used to enumerate which emails have admin accounts.
     const generic = { success: true, message: 'If that email is registered, a verification code has been sent.' };
