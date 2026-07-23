@@ -667,7 +667,14 @@ function OrderDetail({ order, manufacturers, employees, onBack, onChanged }: {
           </div>
         </div>
       )}
-      {!isB2C && order.status === 'NEW' && !['partial', 'paid'].includes(order.paymentStatus || '') && order.pay === 'PENDING' && (
+      {/* Used to trigger at status === 'NEW' — before Accept & Confirm even
+          existed for organisations, that was the only status this card could
+          ever see. Now that orgs go through the same NEW -> CONFIRMED flow as
+          Individuals, showing "waiting for the advance" at NEW (alongside the
+          "waiting for your confirmation" card above, before any price has
+          even been set) was both premature and confusing. Gated on CONFIRMED
+          instead, same as the generic awaitingPayment card below it. */}
+      {!isB2C && order.status === 'CONFIRMED' && !['partial', 'paid'].includes(order.paymentStatus || '') && order.pay === 'PENDING' && (
         <div className="card card-pad no-print" style={{ marginBottom: 14, borderLeft: '3px solid var(--warning, #f59e0b)' }}>
           <b>Waiting for the advance payment.</b>
           <div className="small-muted" style={{ marginTop: 4 }}>Once the quote is agreed, the customer pays the 30% advance in the Garm App (or record it offline). Production can start only after the advance is received.</div>
