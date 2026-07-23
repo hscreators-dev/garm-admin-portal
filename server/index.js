@@ -518,10 +518,11 @@ const routes = [
     // — the customer's tracker stays on "In production" during inspection (see
     // deriveCustomerStatus), then flips to Shipped.
     // QC still requires the customer to have paid (enforced by the gate below).
-    // B2C flow gates: submit -> CONFIRM (admin) -> customer pays -> production.
-    if (body.status === 'CONFIRMED' && !isB2C) {
-      return send(res, 400, { error: 'Only Individual orders use Accept & Confirm — Organisation orders are confirmed by issuing a quote.' });
-    }
+    // Both Individual and Organisation orders now use the same Accept & Confirm
+    // action (previously CONFIRMED was rejected for Organisation orders here,
+    // which left every org order permanently stuck — the frontend already
+    // offered the button, the backend just never let it through).
+    // Flow: submit -> CONFIRM (admin) -> customer pays -> production.
     if (isB2C && body.status === 'INVOICED') {
       return send(res, 400, { error: 'Individual orders are paid in the Garm App after confirmation — no separate invoicing step.' });
     }
